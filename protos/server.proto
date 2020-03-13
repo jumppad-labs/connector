@@ -1,0 +1,93 @@
+syntax = "proto3";
+package shipyard;
+
+service RemoteConnection {
+  // Auth, needs to be defined but
+  // thinking that there would be an auth endpoint which returns a token
+  // that token is then used for the following requests
+
+  // open a remote connection and proxy tcp over gRPC 
+  rpc Open (OpenRequest) returns (stream OpenData);
+
+  // create a new connection for a given service 
+  rpc Create (CreateRequest) returns (CreateResponse);
+  
+  // close a new connection for a given service 
+  rpc Destroy (DestroyRequest) returns (NullResponse);
+}
+
+message NullResponse{}
+
+message OpenData {
+  bytes data = 1;
+}
+
+message OpenRequest {
+  string id = 1;
+}
+
+message CreateRequest {
+  string name = 1;
+  int32 port = 2;
+  repeated Match matches = 3;
+}
+
+message DestroyRequest {
+  string id = 1;
+}
+
+message CreateResponse {
+  string id = 1;
+}
+
+message Match {
+  Http http = 1;
+  Grpc gRPC = 2;
+}
+
+message Http {
+  repeated Header headers = 1;
+}
+
+message Header {
+  string name = 1;
+  string exact = 2;
+}
+
+message Grpc {
+}
+
+/*
+1. Client calls Create with the service details and receives a connection id
+2. OnCreate server registers the service and opens a TCP port where remote traffic can be received (also sets up a traffic splitter in consul?)
+3. Client creates a local TCP socket for the local server calls Open with the connection id to open a gRPC stream to the remote TCP socket. 
+   When data is sent to the remote socket the server wraps this in a grpc stream and sends back to the client, the client then forwards this to a local TCP connection
+
+Docker: Create a network alias
+Kubernetes: Create a kubernetes service
+Consul: Register a service
+Consul Connect: Register a service and set up routing
+Istio: Register a service and set up routing
+
+local_service "fake" {
+  target = "remote_connector.consul"
+
+  name = "service-a"
+  port = 9090
+
+  match {
+    http {
+      header = [
+        {
+          name  = "x-debug"
+          exact = "1"
+        },
+      ]
+    }
+  }
+}
+
+remote_connector "consul" {
+  address = "http://remote.mydomain.com:1244"
+}
+*/
