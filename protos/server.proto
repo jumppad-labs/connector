@@ -7,7 +7,7 @@ service RemoteConnection {
   // that token is then used for the following requests
 
   // open a remote connection and proxy tcp over gRPC 
-  rpc Open (OpenRequest) returns (stream OpenData);
+  rpc Open (stream OpenData) returns (stream OpenData);
 
   // create a new connection for a given service 
   rpc Create (CreateRequest) returns (CreateResponse);
@@ -19,17 +19,16 @@ service RemoteConnection {
 message NullResponse{}
 
 message OpenData {
-  bytes data = 1;
-}
-
-message OpenRequest {
   string id = 1;
+  string type =2;
+  bytes data = 3;
 }
 
 message CreateRequest {
-  string name = 1;
-  int32 port = 2;
-  repeated Match matches = 3;
+  string id = 1; // stream to associate service to
+  string name = 2;
+  int32 port = 3;
+  repeated Match matches = 4;
 }
 
 message DestroyRequest {
@@ -37,7 +36,6 @@ message DestroyRequest {
 }
 
 message CreateResponse {
-  string id = 1;
 }
 
 message Match {

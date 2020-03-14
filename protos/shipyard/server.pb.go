@@ -56,7 +56,9 @@ func (m *NullResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_NullResponse proto.InternalMessageInfo
 
 type OpenData struct {
-	Data                 []byte   `protobuf:"bytes,1,opt,name=data,proto3" json:"data,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Data                 []byte   `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -87,6 +89,20 @@ func (m *OpenData) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_OpenData proto.InternalMessageInfo
 
+func (m *OpenData) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *OpenData) GetType() string {
+	if m != nil {
+		return m.Type
+	}
+	return ""
+}
+
 func (m *OpenData) GetData() []byte {
 	if m != nil {
 		return m.Data
@@ -94,49 +110,11 @@ func (m *OpenData) GetData() []byte {
 	return nil
 }
 
-type OpenRequest struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *OpenRequest) Reset()         { *m = OpenRequest{} }
-func (m *OpenRequest) String() string { return proto.CompactTextString(m) }
-func (*OpenRequest) ProtoMessage()    {}
-func (*OpenRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{2}
-}
-
-func (m *OpenRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_OpenRequest.Unmarshal(m, b)
-}
-func (m *OpenRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_OpenRequest.Marshal(b, m, deterministic)
-}
-func (m *OpenRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_OpenRequest.Merge(m, src)
-}
-func (m *OpenRequest) XXX_Size() int {
-	return xxx_messageInfo_OpenRequest.Size(m)
-}
-func (m *OpenRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_OpenRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_OpenRequest proto.InternalMessageInfo
-
-func (m *OpenRequest) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
 type CreateRequest struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Port                 int32    `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Matches              []*Match `protobuf:"bytes,3,rep,name=matches,proto3" json:"matches,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Port                 int32    `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
+	Matches              []*Match `protobuf:"bytes,4,rep,name=matches,proto3" json:"matches,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -146,7 +124,7 @@ func (m *CreateRequest) Reset()         { *m = CreateRequest{} }
 func (m *CreateRequest) String() string { return proto.CompactTextString(m) }
 func (*CreateRequest) ProtoMessage()    {}
 func (*CreateRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{3}
+	return fileDescriptor_ad098daeda4239f7, []int{2}
 }
 
 func (m *CreateRequest) XXX_Unmarshal(b []byte) error {
@@ -166,6 +144,13 @@ func (m *CreateRequest) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_CreateRequest proto.InternalMessageInfo
+
+func (m *CreateRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
 
 func (m *CreateRequest) GetName() string {
 	if m != nil {
@@ -199,7 +184,7 @@ func (m *DestroyRequest) Reset()         { *m = DestroyRequest{} }
 func (m *DestroyRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyRequest) ProtoMessage()    {}
 func (*DestroyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{4}
+	return fileDescriptor_ad098daeda4239f7, []int{3}
 }
 
 func (m *DestroyRequest) XXX_Unmarshal(b []byte) error {
@@ -228,7 +213,6 @@ func (m *DestroyRequest) GetId() string {
 }
 
 type CreateResponse struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -238,7 +222,7 @@ func (m *CreateResponse) Reset()         { *m = CreateResponse{} }
 func (m *CreateResponse) String() string { return proto.CompactTextString(m) }
 func (*CreateResponse) ProtoMessage()    {}
 func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{5}
+	return fileDescriptor_ad098daeda4239f7, []int{4}
 }
 
 func (m *CreateResponse) XXX_Unmarshal(b []byte) error {
@@ -259,13 +243,6 @@ func (m *CreateResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_CreateResponse proto.InternalMessageInfo
 
-func (m *CreateResponse) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
 type Match struct {
 	Http                 *Http    `protobuf:"bytes,1,opt,name=http,proto3" json:"http,omitempty"`
 	GRPC                 *Grpc    `protobuf:"bytes,2,opt,name=gRPC,proto3" json:"gRPC,omitempty"`
@@ -278,7 +255,7 @@ func (m *Match) Reset()         { *m = Match{} }
 func (m *Match) String() string { return proto.CompactTextString(m) }
 func (*Match) ProtoMessage()    {}
 func (*Match) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{6}
+	return fileDescriptor_ad098daeda4239f7, []int{5}
 }
 
 func (m *Match) XXX_Unmarshal(b []byte) error {
@@ -324,7 +301,7 @@ func (m *Http) Reset()         { *m = Http{} }
 func (m *Http) String() string { return proto.CompactTextString(m) }
 func (*Http) ProtoMessage()    {}
 func (*Http) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{7}
+	return fileDescriptor_ad098daeda4239f7, []int{6}
 }
 
 func (m *Http) XXX_Unmarshal(b []byte) error {
@@ -364,7 +341,7 @@ func (m *Header) Reset()         { *m = Header{} }
 func (m *Header) String() string { return proto.CompactTextString(m) }
 func (*Header) ProtoMessage()    {}
 func (*Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{8}
+	return fileDescriptor_ad098daeda4239f7, []int{7}
 }
 
 func (m *Header) XXX_Unmarshal(b []byte) error {
@@ -409,7 +386,7 @@ func (m *Grpc) Reset()         { *m = Grpc{} }
 func (m *Grpc) String() string { return proto.CompactTextString(m) }
 func (*Grpc) ProtoMessage()    {}
 func (*Grpc) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{9}
+	return fileDescriptor_ad098daeda4239f7, []int{8}
 }
 
 func (m *Grpc) XXX_Unmarshal(b []byte) error {
@@ -433,7 +410,6 @@ var xxx_messageInfo_Grpc proto.InternalMessageInfo
 func init() {
 	proto.RegisterType((*NullResponse)(nil), "shipyard.NullResponse")
 	proto.RegisterType((*OpenData)(nil), "shipyard.OpenData")
-	proto.RegisterType((*OpenRequest)(nil), "shipyard.OpenRequest")
 	proto.RegisterType((*CreateRequest)(nil), "shipyard.CreateRequest")
 	proto.RegisterType((*DestroyRequest)(nil), "shipyard.DestroyRequest")
 	proto.RegisterType((*CreateResponse)(nil), "shipyard.CreateResponse")
@@ -449,29 +425,29 @@ func init() {
 
 var fileDescriptor_ad098daeda4239f7 = []byte{
 	// 361 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x92, 0xcf, 0x6e, 0xe2, 0x30,
-	0x10, 0xc6, 0x15, 0x08, 0x01, 0x06, 0x36, 0x8b, 0xac, 0xfd, 0x13, 0x21, 0xed, 0x2a, 0xf2, 0x89,
-	0xf6, 0x80, 0xaa, 0x70, 0xe4, 0x08, 0x52, 0x7b, 0x69, 0xa9, 0xfc, 0x06, 0x26, 0x19, 0x35, 0x91,
-	0x20, 0x76, 0x6d, 0x53, 0x95, 0xc7, 0xeb, 0x9b, 0x55, 0x76, 0x88, 0x92, 0x88, 0xf6, 0x36, 0x99,
-	0xdf, 0x17, 0xcf, 0xf8, 0xfb, 0x0c, 0x53, 0x8d, 0xea, 0x0d, 0xd5, 0x52, 0x2a, 0x61, 0x04, 0x19,
-	0xe9, 0xbc, 0x90, 0x67, 0xae, 0x32, 0x1a, 0xc2, 0xf4, 0xe9, 0x74, 0x38, 0x30, 0xd4, 0x52, 0x94,
-	0x1a, 0xe9, 0x7f, 0x18, 0xed, 0x24, 0x96, 0x5b, 0x6e, 0x38, 0x21, 0xe0, 0x67, 0xdc, 0xf0, 0xc8,
-	0x8b, 0xbd, 0xc5, 0x94, 0xb9, 0x9a, 0xfe, 0x83, 0x89, 0xe5, 0x0c, 0x5f, 0x4f, 0xa8, 0x0d, 0x09,
-	0xa1, 0x57, 0x64, 0x4e, 0x30, 0x66, 0xbd, 0x22, 0xa3, 0x7b, 0xf8, 0xb1, 0x51, 0xc8, 0x0d, 0xd6,
-	0x02, 0x02, 0x7e, 0xc9, 0x8f, 0x78, 0x91, 0xb8, 0xda, 0xf6, 0xa4, 0x50, 0x26, 0xea, 0xc5, 0xde,
-	0x62, 0xc0, 0x5c, 0x4d, 0x6e, 0x60, 0x78, 0xe4, 0x26, 0xcd, 0x51, 0x47, 0xfd, 0xb8, 0xbf, 0x98,
-	0x24, 0x3f, 0x97, 0xf5, 0x8e, 0xcb, 0x47, 0x0b, 0x58, 0xcd, 0x69, 0x0c, 0xe1, 0x16, 0xb5, 0x51,
-	0xe2, 0xfc, 0xdd, 0x16, 0x31, 0x84, 0xf5, 0x16, 0xd5, 0xb5, 0xae, 0x14, 0x3b, 0x18, 0xb8, 0x53,
-	0x09, 0x05, 0x3f, 0x37, 0x46, 0x3a, 0x34, 0x49, 0xc2, 0x66, 0xe8, 0x83, 0x31, 0x92, 0x39, 0x66,
-	0x35, 0x2f, 0xec, 0x79, 0xe3, 0xf6, 0xed, 0x68, 0xee, 0x95, 0x4c, 0x99, 0x63, 0x34, 0x01, 0xdf,
-	0xfe, 0x41, 0x6e, 0x61, 0x98, 0x23, 0xcf, 0x50, 0xe9, 0xc8, 0x73, 0xf7, 0x98, 0xb5, 0x8e, 0x74,
-	0x80, 0xd5, 0x02, 0x9a, 0x40, 0x50, 0xb5, 0xbe, 0x74, 0xe9, 0x17, 0x0c, 0xf0, 0x9d, 0xa7, 0x95,
-	0x4d, 0x63, 0x56, 0x7d, 0xd0, 0x00, 0x7c, 0x3b, 0x35, 0xf9, 0xf0, 0x60, 0xc6, 0xf0, 0x28, 0x0c,
-	0x6e, 0x44, 0x59, 0x62, 0x6a, 0x0a, 0x51, 0x92, 0x15, 0xf8, 0x36, 0x1c, 0xf2, 0xbb, 0x99, 0xd9,
-	0x0a, 0x6b, 0x4e, 0xba, 0x6d, 0x9b, 0xf1, 0x9d, 0x47, 0xd6, 0x10, 0x54, 0x66, 0x91, 0xbf, 0x0d,
-	0xef, 0x84, 0x38, 0x8f, 0xae, 0xc1, 0xc5, 0xd7, 0x35, 0x0c, 0x2f, 0x59, 0x90, 0x96, 0xa8, 0x1b,
-	0xcf, 0xfc, 0x4f, 0x43, 0xda, 0x6f, 0x6d, 0x1f, 0xb8, 0xc7, 0xb8, 0xfa, 0x0c, 0x00, 0x00, 0xff,
-	0xff, 0xb3, 0xc0, 0xe3, 0xf1, 0x9c, 0x02, 0x00, 0x00,
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0xc1, 0xae, 0xd3, 0x30,
+	0x10, 0x94, 0xfb, 0xd2, 0xb4, 0x6c, 0x4b, 0xa8, 0x2c, 0x04, 0x51, 0x4f, 0x91, 0x4f, 0x81, 0x43,
+	0x85, 0xc2, 0xb1, 0x37, 0x5a, 0x09, 0x2e, 0x50, 0xe4, 0x3f, 0x30, 0xc9, 0x8a, 0x44, 0x6a, 0x63,
+	0x63, 0x6f, 0x11, 0xfd, 0x3b, 0x3e, 0x0d, 0xd9, 0x69, 0x9a, 0x54, 0xf4, 0xdd, 0x36, 0x33, 0x93,
+	0xd9, 0xf5, 0xec, 0xc2, 0xd2, 0xa1, 0xfd, 0x8d, 0x76, 0x63, 0xac, 0x26, 0xcd, 0xe7, 0xae, 0x6e,
+	0xcc, 0x45, 0xd9, 0x4a, 0x24, 0xb0, 0xfc, 0x76, 0x3e, 0x1e, 0x25, 0x3a, 0xa3, 0x5b, 0x87, 0xe2,
+	0x13, 0xcc, 0x0f, 0x06, 0xdb, 0xbd, 0x22, 0xc5, 0x13, 0x98, 0x34, 0x55, 0xca, 0x32, 0x96, 0xbf,
+	0x90, 0x93, 0xa6, 0xe2, 0x1c, 0x22, 0xba, 0x18, 0x4c, 0x27, 0x01, 0x09, 0xb5, 0xc7, 0x2a, 0x45,
+	0x2a, 0x7d, 0xca, 0x58, 0xbe, 0x94, 0xa1, 0x16, 0x16, 0x5e, 0xee, 0x2c, 0x2a, 0x42, 0x89, 0xbf,
+	0xce, 0xe8, 0xe8, 0x91, 0x51, 0xab, 0x4e, 0x37, 0x23, 0x5f, 0x7b, 0xcc, 0x68, 0x4b, 0xc1, 0x68,
+	0x2a, 0x43, 0xcd, 0xdf, 0xc1, 0xec, 0xa4, 0xa8, 0xac, 0xd1, 0xa5, 0x51, 0xf6, 0x94, 0x2f, 0x8a,
+	0x57, 0x9b, 0x7e, 0xf0, 0xcd, 0x57, 0x4f, 0xc8, 0x9e, 0x17, 0x19, 0x24, 0x7b, 0x74, 0x64, 0xf5,
+	0xe5, 0x99, 0xa6, 0x62, 0x05, 0x49, 0x3f, 0xd5, 0xf5, 0xad, 0x07, 0x98, 0x06, 0x17, 0x2e, 0x20,
+	0xaa, 0x89, 0x4c, 0x10, 0x2f, 0x8a, 0x64, 0x68, 0xf2, 0x85, 0xc8, 0xc8, 0xc0, 0x79, 0xcd, 0x4f,
+	0xf9, 0x7d, 0x17, 0x66, 0xbe, 0xd3, 0x7c, 0xb6, 0xa6, 0x94, 0x81, 0x13, 0x05, 0x44, 0xfe, 0x0f,
+	0xfe, 0x1e, 0x66, 0x35, 0xaa, 0x0a, 0xad, 0x4b, 0x59, 0x98, 0x7b, 0x35, 0xb2, 0x0c, 0x84, 0xec,
+	0x05, 0xa2, 0x80, 0xb8, 0x83, 0x6e, 0xa9, 0xb0, 0x51, 0x2a, 0xaf, 0x61, 0x8a, 0x7f, 0x54, 0x49,
+	0xd7, 0xa8, 0xba, 0x0f, 0x11, 0x43, 0xe4, 0xbb, 0x16, 0x7f, 0x19, 0xac, 0x24, 0x9e, 0x34, 0xe1,
+	0x4e, 0xb7, 0x2d, 0x96, 0xd4, 0xe8, 0x96, 0x17, 0x10, 0xf9, 0x0d, 0x72, 0x3e, 0xf4, 0xec, 0x37,
+	0xba, 0x7e, 0x80, 0xe5, 0xec, 0x03, 0xe3, 0x5b, 0x88, 0xbb, 0x6c, 0xf8, 0xdb, 0x41, 0x71, 0xb7,
+	0xc3, 0x75, 0xfa, 0x3f, 0xd1, 0xc5, 0xc8, 0xb7, 0x30, 0xbb, 0x46, 0xcf, 0x47, 0xa2, 0xfb, 0x6d,
+	0xac, 0xdf, 0x0c, 0xcc, 0xf8, 0xde, 0x7e, 0xc4, 0xe1, 0x20, 0x3f, 0xfe, 0x0b, 0x00, 0x00, 0xff,
+	0xff, 0x97, 0x82, 0xb0, 0xb3, 0xa0, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -487,7 +463,7 @@ const _ = grpc.SupportPackageIsVersion6
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RemoteConnectionClient interface {
 	// open a remote connection and proxy tcp over gRPC
-	Open(ctx context.Context, in *OpenRequest, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error)
+	Open(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error)
 	// create a new connection for a given service
 	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
 	// close a new connection for a given service
@@ -502,28 +478,27 @@ func NewRemoteConnectionClient(cc grpc.ClientConnInterface) RemoteConnectionClie
 	return &remoteConnectionClient{cc}
 }
 
-func (c *remoteConnectionClient) Open(ctx context.Context, in *OpenRequest, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error) {
+func (c *remoteConnectionClient) Open(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error) {
 	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[0], "/shipyard.RemoteConnection/Open", opts...)
 	if err != nil {
 		return nil, err
 	}
 	x := &remoteConnectionOpenClient{stream}
-	if err := x.ClientStream.SendMsg(in); err != nil {
-		return nil, err
-	}
-	if err := x.ClientStream.CloseSend(); err != nil {
-		return nil, err
-	}
 	return x, nil
 }
 
 type RemoteConnection_OpenClient interface {
+	Send(*OpenData) error
 	Recv() (*OpenData, error)
 	grpc.ClientStream
 }
 
 type remoteConnectionOpenClient struct {
 	grpc.ClientStream
+}
+
+func (x *remoteConnectionOpenClient) Send(m *OpenData) error {
+	return x.ClientStream.SendMsg(m)
 }
 
 func (x *remoteConnectionOpenClient) Recv() (*OpenData, error) {
@@ -555,7 +530,7 @@ func (c *remoteConnectionClient) Destroy(ctx context.Context, in *DestroyRequest
 // RemoteConnectionServer is the server API for RemoteConnection service.
 type RemoteConnectionServer interface {
 	// open a remote connection and proxy tcp over gRPC
-	Open(*OpenRequest, RemoteConnection_OpenServer) error
+	Open(RemoteConnection_OpenServer) error
 	// create a new connection for a given service
 	Create(context.Context, *CreateRequest) (*CreateResponse, error)
 	// close a new connection for a given service
@@ -566,7 +541,7 @@ type RemoteConnectionServer interface {
 type UnimplementedRemoteConnectionServer struct {
 }
 
-func (*UnimplementedRemoteConnectionServer) Open(req *OpenRequest, srv RemoteConnection_OpenServer) error {
+func (*UnimplementedRemoteConnectionServer) Open(srv RemoteConnection_OpenServer) error {
 	return status.Errorf(codes.Unimplemented, "method Open not implemented")
 }
 func (*UnimplementedRemoteConnectionServer) Create(ctx context.Context, req *CreateRequest) (*CreateResponse, error) {
@@ -581,15 +556,12 @@ func RegisterRemoteConnectionServer(s *grpc.Server, srv RemoteConnectionServer) 
 }
 
 func _RemoteConnection_Open_Handler(srv interface{}, stream grpc.ServerStream) error {
-	m := new(OpenRequest)
-	if err := stream.RecvMsg(m); err != nil {
-		return err
-	}
-	return srv.(RemoteConnectionServer).Open(m, &remoteConnectionOpenServer{stream})
+	return srv.(RemoteConnectionServer).Open(&remoteConnectionOpenServer{stream})
 }
 
 type RemoteConnection_OpenServer interface {
 	Send(*OpenData) error
+	Recv() (*OpenData, error)
 	grpc.ServerStream
 }
 
@@ -599,6 +571,14 @@ type remoteConnectionOpenServer struct {
 
 func (x *remoteConnectionOpenServer) Send(m *OpenData) error {
 	return x.ServerStream.SendMsg(m)
+}
+
+func (x *remoteConnectionOpenServer) Recv() (*OpenData, error) {
+	m := new(OpenData)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func _RemoteConnection_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -655,6 +635,7 @@ var _RemoteConnection_serviceDesc = grpc.ServiceDesc{
 			StreamName:    "Open",
 			Handler:       _RemoteConnection_Open_Handler,
 			ServerStreams: true,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "server.proto",

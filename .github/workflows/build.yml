@@ -1,0 +1,28 @@
+name: Build
+on: [push]
+jobs:
+  build:
+    env:
+      GONOSUMDB: "github.com/moby/moby"
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+
+      - name: Get dependencies
+        run: |
+          go get -v -t ./...
+
+      - name: Unit Test
+        run: |
+          go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...)
+
+      - name: Build
+        run: |
+          go build -v .
+
+      - name: Upload Code Coverage
+        uses: codecov/codecov-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }} #required
