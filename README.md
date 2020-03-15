@@ -1,5 +1,5 @@
 # connector
-
+![Build](https://github.com/shipyard-run/connector/workflows/Build/badge.svg)
 [![codecov](https://codecov.io/gh/shipyard-run/connector/branch/master/graph/badge.svg)](https://codecov.io/gh/shipyard-run/connector)
 
 Client and Server packages for Shipyard connector which allow local applications to be integrated into a remote application stack
