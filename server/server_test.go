@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 var messageData []byte
+var lock = sync.Mutex{}
 
 func setupServerTests(t *testing.T) (shipyard.RemoteConnectionClient, string, func()) {
 
@@ -35,6 +37,7 @@ func setupServerTests(t *testing.T) (shipyard.RemoteConnectionClient, string, fu
 	c := shipyard.NewRemoteConnectionClient(conn)
 
 	var connID string
+
 	// establish a stream with the server
 	sc, err := c.Open(context.Background())
 	assert.NoError(t, err)
@@ -48,13 +51,19 @@ func setupServerTests(t *testing.T) (shipyard.RemoteConnectionClient, string, fu
 			}
 
 			if msg.Type == "hello" {
+				lock.Lock()
 				connID = msg.Id
+				lock.Unlock()
+
 				fmt.Println("Got hello message")
 				continue
 			}
 
 			fmt.Println("Got message", string(msg.GetData()))
+
+			lock.Lock()
 			messageData = msg.GetData()
+			lock.Unlock()
 		}
 	}(sc)
 
@@ -62,9 +71,14 @@ func setupServerTests(t *testing.T) (shipyard.RemoteConnectionClient, string, fu
 	assert.Eventually(
 		t,
 		func() bool {
-			return connID != ""
+			lock.Lock()
+			defer lock.Unlock()
+
+			match := connID != ""
+
+			return match
 		},
-		1*time.Second,
+		5*time.Second,
 		10*time.Millisecond,
 	)
 
@@ -92,9 +106,13 @@ func TestCreateOpensTCPConnectionAndStreamsData(t *testing.T) {
 
 	assert.Eventually(t,
 		func() bool {
-			return string(messageData) == inMessage
+			lock.Lock()
+			defer lock.Unlock()
+
+			match := string(messageData) == inMessage
+			return match
 		},
-		1*time.Second,
+		5*time.Second,
 		10*time.Millisecond,
 	)
 }
