@@ -73,7 +73,7 @@ func TestCreateOpensTCPConnectionAndStreamsData(t *testing.T) {
 	c := setupServerTests(t)
 	tsAddr := startLocalServer(t, &response)
 
-	go c.OpenRemoteConnection(19090, "test_server", tsAddr)
+	go c.OpenLocalConnection(19090, "test_server", tsAddr)
 	time.Sleep(100 * time.Millisecond) // wait for the server to connect
 
 	assertRequest(t, &response, "abc123")
@@ -85,16 +85,30 @@ func TestCloseClosesTCPConnection(t *testing.T) {
 	c := setupServerTests(t)
 	tsAddr := startLocalServer(t, &response)
 
-	go c.OpenRemoteConnection(19090, "test_server", tsAddr)
+	go c.OpenLocalConnection(19090, "test_server", tsAddr)
 	time.Sleep(100 * time.Millisecond) // wait for the server to connect
 
 	assertRequest(t, &response, "abc123")
 
-	c.CloseRemoteConnection(19090)
+	c.CloseLocalConnection(19090)
 
 	// this should fail as the connection is now closed
 	_, err := http.DefaultClient.Get("http://localhost:19090")
 	require.Error(t, err)
+}
+
+func TestLocalOpensTCPConnectionAndStreamsData(t *testing.T) {
+	response := ""
+	c := setupServerTests(t)
+	tsAddr := startLocalServer(t, &response)
+
+	go c.OpenRemoteConnection(19090, "test_server", tsAddr)
+	defer c.CloseRemoteConnection(19090)
+
+	time.Sleep(100 * time.Millisecond) // wait for the server to connect
+
+	assertRequest(t, &response, "abc123")
+	assertRequest(t, &response, "123abc")
 }
 
 func assertRequest(t *testing.T, response *string, data string) {

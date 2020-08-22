@@ -7,7 +7,10 @@ service RemoteConnection {
   // that token is then used for the following requests
 
   // Open a stream to the remote TCP port
-  rpc Open (stream OpenData) returns (stream OpenData);
+  rpc OpenLocal (stream OpenData) returns (stream OpenData);
+
+  // Open a Connection from a local host to a remote service
+  rpc OpenRemote (stream OpenData) returns (stream OpenData);
 
   // Open a new TCP port for the local service on the server and start listening
   rpc ExposeLocalService (ExposeRequest) returns (ExposeResponse);
