@@ -6,37 +6,51 @@ service RemoteConnection {
   // thinking that there would be an auth endpoint which returns a token
   // that token is then used for the following requests
 
-  // open a remote connection and proxy tcp over gRPC 
+  // Open a stream to the remote TCP port
   rpc Open (stream OpenData) returns (stream OpenData);
 
-  // create a new connection for a given service 
-  rpc Create (CreateRequest) returns (CreateResponse);
+  // Open a new TCP port for the local service on the server and start listening
+  rpc ExposeLocalService (ExposeRequest) returns (ExposeResponse);
   
-  // close a new connection for a given service 
-  rpc Destroy (DestroyRequest) returns (NullResponse);
+  // Close the remote TCP port and remove all resources  
+  rpc DestroyLocalService (DestroyRequest) returns (NullResponse);
 }
 
 message NullResponse{}
 
 message OpenData {
-  string id = 1;
-  string type =2;
-  bytes data = 3;
+  string service_id = 1;
+  string request_id = 2;
+  string location   = 3;
+  MessageType type  = 4;
+  bytes data        = 5;
 }
 
-message CreateRequest {
-  string id = 1; // stream to associate service to
-  string name = 2;
-  int32 port = 3;
+enum MessageType {
+  DATA           = 0;
+  NEW_CONNECTION = 1;
+  WRITE_DONE     = 2;
+  READ_DONE      = 3;
+  ERROR          = 4;
+}
+
+message ExposeRequest {
+  string name = 1; // name of the service
+  int32 port = 2;
   repeated Match matches = 4;
+}
+
+message ExposeResponse {
+  string id = 1;
 }
 
 message DestroyRequest {
   string id = 1;
 }
 
-message CreateResponse {
+message RemoteRequest {
 }
+
 
 message Match {
   Http http = 1;
