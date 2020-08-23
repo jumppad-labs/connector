@@ -6,54 +6,94 @@ service RemoteConnection {
   // thinking that there would be an auth endpoint which returns a token
   // that token is then used for the following requests
 
-  // Open a stream to the remote TCP port
-  rpc OpenLocal (stream OpenData) returns (stream OpenData);
-
-  // Open a Connection from a local host to a remote service
-  rpc OpenRemote (stream OpenData) returns (stream OpenData);
+  // Open a stream between two servers
+  rpc OpenStream (stream OpenData) returns (stream OpenData);
 
   // Open a new TCP port for the local service on the server and start listening
-  rpc ExposeLocalService (ExposeRequest) returns (ExposeResponse);
+  rpc ExposeService (ExposeRequest) returns (ExposeResponse);
   
   // Close the remote TCP port and remove all resources  
-  rpc DestroyLocalService (DestroyRequest) returns (NullResponse);
+  rpc DestroyService (DestroyRequest) returns (NullResponse);
+
+  // Create a TCP socket and listen for traffic 
+  rpc CreateListener(ListenerRequest) returns (NullResponse);
+
+  // Close  a local TCP socket and stop listenng for traffic 
+  rpc DestroyListener(ListenerRequest) returns (NullResponse);
 }
+  
+  // Expose local service - allow traffic on remote server 8081 to be sent to local machine 8080
+  // 1. ExposeRequest called on local server
+  //      name = service name
+  //      serverAddr = http://remote.server
+  //      localPort = 8080
+  //      remotePort = 8081
+  //      type = local
+  // 2. Call CreateListener on remote server to setup a TCP listener
+  //      name = service name
+  //      port = 8081
+  // 3. OpenStream called on remote if no stream exists
+  
+  // Expose remote service - allow traffic on remote server 8081 to be exposed locally at 8080
+  // 1. ExposeRequest called on local server
+  //      name = service name
+  //      serverAddr = http://remote.server
+  //      localPort = 8080
+  //      remotePort = 8081
+  //      type = remote
+  // 2. Call CreateListener on local server to setup a TCP listener
+  //      name = service name
+  //      port = 8080
+  // 3. OpenStream called on remote if no stream exists
 
 message NullResponse{}
 
 message OpenData {
-  string service_id = 1;
-  string request_id = 2;
-  string location   = 3;
-  MessageType type  = 4;
-  bytes data        = 5;
+  string service_id    = 1;
+  string connection_id = 2;
+  string location      = 3;
+  MessageType type     = 4;
+  bytes data           = 5;
 }
 
 enum MessageType {
-  DATA           = 0;
-  NEW_CONNECTION = 1;
-  WRITE_DONE     = 2;
-  READ_DONE      = 3;
-  ERROR          = 4;
+  HELLO          = 0;
+  CLOSED         = 1;
+  DATA           = 2;
+  NEW_CONNECTION = 3;
+  WRITE_DONE     = 4;
+  READ_DONE      = 5;
+  ERROR          = 6;
 }
 
 message ExposeRequest {
   string name = 1; // name of the service
-  int32 port = 2;
-  repeated Match matches = 4;
+  string remoteServerAddr = 2; // address of the remote component for the service
+  string serviceAddr = 3; // address of the service being exposed
+  int32 localPort = 4; // local port to expose on
+  int32 remotePort = 5; // port to expose on
+  ServiceType type = 6; // is the service running on this machine or the remote machine
+  repeated Match matches = 7;
+}
+
+enum ServiceType {
+  LOCAL  = 0; // Service exists on local component
+  REMOTE = 1; // Service exists  on remote component
 }
 
 message ExposeResponse {
-  string id = 1;
+  string id = 1; // id of the service
+}
+
+message ListenerRequest {
+  string id = 1; // id of the service
+  int32 localPort = 2; // local port to expose on
 }
 
 message DestroyRequest {
   string id = 1;
+  string serverAddr = 2; // address of the local listener, local listener can be localhost
 }
-
-message RemoteRequest {
-}
-
 
 message Match {
   Http http = 1;

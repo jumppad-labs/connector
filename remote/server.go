@@ -5,259 +5,381 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
 	"github.com/shipyard-run/connector/protos/shipyard"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-type Server struct {
-	listeners   map[string]net.Listener
-	tcpConn     map[string]net.Conn
-	connections map[string]shipyard.RemoteConnection_OpenLocalServer
-	logger      hclog.Logger
+type remoteConnection struct {
+	id   string
+	conn interface{}
 }
 
-func NewServer(log hclog.Logger) *Server {
-	return &Server{
-		make(map[string]net.Listener),
-		make(map[string]net.Conn),
-		make(map[string]shipyard.RemoteConnection_OpenLocalServer),
-		log,
+func (r *remoteConnection) Send(data *shipyard.OpenData) {
+	switch c := r.conn.(type) {
+	case shipyard.RemoteConnection_OpenStreamClient:
+		c.Send(data)
+	case shipyard.RemoteConnection_OpenStreamServer:
+		c.Send(data)
 	}
 }
 
-// ExposeLocalService opens a TCP port for a local service
-func (s *Server) ExposeLocalService(ctx context.Context, cr *shipyard.ExposeRequest) (*shipyard.ExposeResponse, error) {
+type service struct {
+	id               string
+	name             string
+	remoteServerAddr string
+	localServiceAddr string
+	localPort        int
+	remotePort       int
+	listener         net.Listener
+	remoteConnection *remoteConnection
+	localConnections map[string]net.Conn
+}
+
+func newService(id string) *service {
+	return &service{
+		id:               id,
+		localConnections: map[string]net.Conn{},
+	}
+}
+
+type Server struct {
+	log      hclog.Logger
+	services map[string]*service
+}
+
+func New(l hclog.Logger) *Server {
+	return &Server{
+		l,
+		map[string]*service{},
+	}
+}
+
+func (s *Server) findService(id string) *service {
+	svc, ok := s.services[id]
+	if !ok {
+		svc = newService(id)
+		s.services[id] = svc
+	}
+
+	return svc
+}
+
+func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) error {
+	s.log.Info("Received new connection from client")
+
+	for {
+		msg, err := svr.Recv()
+		if err != nil {
+			s.log.Error("Error receiving server message", "error", err)
+			time.Sleep(1 * time.Second) // backoff for now, we need to handle failure better
+			break
+		}
+
+		s.log.Debug("Received server message", "type", msg.Type, "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+		switch msg.Type {
+		case shipyard.MessageType_HELLO:
+			// new connection for service add to the collection
+			svc := s.findService(msg.ServiceId)
+			svc.remoteConnection = &remoteConnection{id: msg.ServiceId, conn: svr}
+			svc.localServiceAddr = msg.Location
+		case shipyard.MessageType_DATA:
+			s.log.Trace("Message detail", "msg", msg)
+
+			svc := s.findService(msg.ServiceId)
+			conn, ok := svc.localConnections[msg.ConnectionId]
+			if !ok {
+				s.log.Debug("Local connection does not exist, creating", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId, "addr", svc.localServiceAddr)
+				// if there is no local connection assume that a remote instance is trying to connect to our local
+				// service for the first time
+				var err error
+				conn, err = net.Dial("tcp", svc.localServiceAddr)
+				svc.localConnections[msg.ConnectionId] = conn
+
+				if err != nil {
+					s.log.Error("Unable to create local connection", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId, "error", err)
+					continue
+				}
+			}
+
+			s.log.Debug("Writing data to connection", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+			conn.Write(msg.Data)
+		case shipyard.MessageType_WRITE_DONE:
+			// all data has been received, read from the local connection
+			s.readData(msg)
+		case shipyard.MessageType_CLOSED:
+			svc := s.findService(msg.ServiceId)
+			conn, ok := svc.localConnections[msg.ConnectionId]
+			if !ok {
+				s.log.Debug("Closing connection", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+				conn.Close()
+			}
+		}
+
+	}
+
+	return nil
+}
+
+func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (*shipyard.ExposeResponse, error) {
+	s.log.Info("Expose Service", "req", r)
+
+	// generate a unique id for the service
 	id := uuid.New().String()
+	svc := s.findService(id)
+	svc.name = r.Name
+	svc.localServiceAddr = r.ServiceAddr
+	svc.localPort = int(r.LocalPort)
+	svc.remotePort = int(r.RemotePort)
+	svc.remoteServerAddr = r.RemoteServerAddr
 
-	s.logger.Info("Exposing Local Service", "name", cr.Name, "id", id)
+	switch r.Type {
+	case shipyard.ServiceType_REMOTE: // expose a remote service locally
+		s.CreateListener(ctx, &shipyard.ListenerRequest{Id: id, LocalPort: r.LocalPort})
+	case shipyard.ServiceType_LOCAL:
+		c, err := s.getClient(r.RemoteServerAddr)
+		if err != nil {
+			s.log.Error("Unable to get remote client", "addr", r.RemoteServerAddr, "error", err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
 
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", cr.Port))
+		_, err = c.CreateListener(ctx, &shipyard.ListenerRequest{Id: id, LocalPort: r.RemotePort})
+		if err != nil {
+			s.log.Error("Unable to create remote listener", "addr", r.RemoteServerAddr, "error", err)
+			return nil, status.Error(codes.Internal, err.Error())
+		}
+	}
+
+	// we need to open a stream to the remote server
+	s.log.Debug("Opening Stream to remote server", "addr", r.RemoteServerAddr)
+	c, err := s.getClient(r.RemoteServerAddr)
 	if err != nil {
-		s.logger.Error("Unable to create listener", "error", err)
+		s.log.Error("Unable to get remote client", "addr", r.RemoteServerAddr, "error", err)
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	s.listeners[id] = l
+	rc, err := c.OpenStream(context.Background())
+	if err != nil {
+		s.log.Error("Unable to open remote connection", "addr", r.RemoteServerAddr, "error", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
 
-	go s.tcpListen(id)
+	// ping the remote server a hello message
+	rc.Send(&shipyard.OpenData{Type: shipyard.MessageType_HELLO, ServiceId: id, Location: svc.localServiceAddr})
 
+	// add to the collection and handle messages
+	svc.remoteConnection = &remoteConnection{id: id, conn: rc}
+	s.handleRemoteConnection(id, rc)
+
+	s.log.Debug("Done", "addr", r.RemoteServerAddr, "error", err)
 	return &shipyard.ExposeResponse{Id: id}, nil
 }
 
-// DestroyLocalService a new connection for a given service
-func (s *Server) DestroyLocalService(ctx context.Context, dr *shipyard.DestroyRequest) (*shipyard.NullResponse, error) {
-	s.logger.Info("Delete Local Service", "id", dr.Id)
+func (s *Server) DestroyService(context.Context, *shipyard.DestroyRequest) (*shipyard.NullResponse, error) {
+	return nil, nil
+}
 
-	s.listeners[dr.Id].Close()
-	delete(s.listeners, dr.Id)
+func (s *Server) CreateListener(ctx context.Context, lr *shipyard.ListenerRequest) (*shipyard.NullResponse, error) {
+	s.log.Info("Create Listener", "id", lr.Id, "port", lr.LocalPort)
+
+	svc := s.findService(lr.Id)
+	svc.localPort = int(lr.LocalPort)
+
+	// create the listener
+	l, err := net.Listen("tcp", fmt.Sprintf(":%d", lr.LocalPort))
+	if err != nil {
+		s.log.Error("Unable to open TCP Listener", "error", err)
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	svc.listener = l
+
+	s.handleListener(lr.Id, l)
 
 	return &shipyard.NullResponse{}, nil
 }
 
-func (s *Server) OpenRemote(rc shipyard.RemoteConnection_OpenRemoteServer) error {
-	for {
-		msg, err := rc.Recv()
-		if err == io.EOF {
-			return nil
-		}
-
-		if err != nil {
-			s.logger.Error("Error receiving data", "error", err)
-			// clean up the connection
-			delete(s.connections, "a")
-
-			break
-		}
-
-		s.logger.Debug("Got message from stream", "id", msg.ServiceId, "rid", msg.RequestId, "type", msg.Type)
-
-		switch msg.Type {
-		case shipyard.MessageType_NEW_CONNECTION:
-			s.newConnection(msg, msg.Location)
-		case shipyard.MessageType_DATA:
-			s.writeData(msg, rc) // write data from the remote connection to the local endpoint
-		case shipyard.MessageType_WRITE_DONE:
-			s.readData(msg, rc) // read the response and send back to the server
-		case shipyard.MessageType_ERROR:
-			s.closeConnection(msg, nil, rc) // read the response and send back to the server
-		}
-	}
-
-	return nil
+func (s *Server) DestroyListener(context.Context, *shipyard.ListenerRequest) (*shipyard.NullResponse, error) {
+	return nil, nil
 }
 
-func (s *Server) OpenLocal(rc shipyard.RemoteConnection_OpenLocalServer) error {
-	// add the connetion to the collection
-	s.connections["a"] = rc
-
-	// handle messages for the connection
-	for {
-		msg, err := rc.Recv()
-		if err == io.EOF {
-			return nil
-		}
-
-		if err != nil {
-			s.logger.Error("Error receiving data", "error", err)
-			// clean up the connection
-			delete(s.connections, "a")
-
-			break
-		}
-
-		s.logger.Debug("Got message from stream", "id", msg.ServiceId, "rid", msg.RequestId, "type", msg.Type)
-
-		// attempt top get a local listener for the message
-		switch msg.Type {
-		case shipyard.MessageType_DATA:
-			if conn, ok := s.tcpConn[msg.RequestId]; ok {
-				conn.Write(msg.Data)
-			}
-		case shipyard.MessageType_READ_DONE:
-			if conn, ok := s.tcpConn[msg.RequestId]; ok {
-				conn.Close()
-			}
-			delete(s.tcpConn, msg.RequestId)
-		case shipyard.MessageType_ERROR:
-			s.logger.Error("Error from remote endpoint", "message", msg)
-
-			if conn, ok := s.tcpConn[msg.RequestId]; ok {
-				conn.Close()
-			}
-			delete(s.tcpConn, msg.RequestId)
-		}
-	}
-
-	return nil
-}
-
-// tcpListen listens on a local port and attempts to send the data over a gRPC connection
-func (s *Server) tcpListen(id string) {
-	l := s.listeners[id]
-	for {
-		// accept the next connection in the queue
-		conn, err := l.Accept()
-		if err != nil {
-			s.logger.Error("Unable to accept connection", "error", err)
-			break
-		}
-
-		// work on the connection in the background to enable the next connection to be handled concurrently
-		s.logger.Debug("Handle new connection", "id", id)
-		rid := uuid.New().String() // generate a new request id
-		s.tcpConn[rid] = conn
-
-		// send the new connection message
-		s.connections["a"].Send(&shipyard.OpenData{ServiceId: id, RequestId: rid, Type: shipyard.MessageType_NEW_CONNECTION})
-
-		go func(conn net.Conn, id string, rid string) {
-			for {
-				maxBuffer := 4096
-				data := make([]byte, maxBuffer)
-
-				// read 4K of data from the connection
-				// if no data left to read break
-				s.logger.Debug("Starting read", "service", id, "rid", rid)
-
-				i, err := conn.Read(data)
-				if err != nil || i == 0 {
-					s.connections["a"].Send(&shipyard.OpenData{ServiceId: id, RequestId: rid, Type: shipyard.MessageType_ERROR})
-					break
-				}
-
-				// send the read chunk of data over the gRPC stream
-				s.logger.Debug("Read data for connection", "service", id, "rid", rid, "len", i, "data", string(data[:i]))
-
-				// check there is a connection if not just return
-				if gconn := s.connections["a"]; gconn != nil {
-					s.logger.Debug("Sending data to stream", "service", id, "rid", rid, "data", string(data[:i]))
-
-					gconn.Send(&shipyard.OpenData{ServiceId: id, RequestId: rid, Type: shipyard.MessageType_DATA, Data: data[:i]})
-				}
-
-				if i < maxBuffer {
-					s.logger.Debug("All data read", "service", id, "rid", rid)
-					s.connections["a"].Send(&shipyard.OpenData{ServiceId: id, RequestId: rid, Type: shipyard.MessageType_WRITE_DONE})
-					break
-				}
-			}
-		}(conn, id, rid)
-	}
-}
-
-func (s *Server) newConnection(msg *shipyard.OpenData, localAddr string) error {
-	var err error
-	con, err := net.Dial("tcp", localAddr)
-	if err != nil {
-		s.logger.Error("Unable to open connection to remote server", "addr", localAddr, "error", err)
-		return err
-	}
-
-	s.tcpConn[msg.RequestId] = con
-	return nil
-}
-
-func (s *Server) closeConnection(msg *shipyard.OpenData, t *shipyard.MessageType, sc shipyard.RemoteConnection_OpenLocalServer) {
-	if conn, ok := s.tcpConn[msg.RequestId]; ok {
-		conn.Close()
-		delete(s.tcpConn, msg.RequestId)
-
-		if t != nil {
-			// send the close message back to the server
-			sc.Send(&shipyard.OpenData{ServiceId: msg.ServiceId, RequestId: msg.RequestId, Type: *t})
-		}
-	}
-}
-
-func (s *Server) readData(msg *shipyard.OpenData, sc shipyard.RemoteConnection_OpenLocalServer) {
-	con, ok := s.tcpConn[msg.RequestId]
-	if ok {
-		for {
-			s.logger.Debug("Reading data from local server", "rid", msg.RequestId)
-
-			maxBuffer := 4096
-			data := make([]byte, maxBuffer)
-
-			i, err := con.Read(data) // read 4k of data
-
-			// if we had a read error tell the server
-			if i == 0 || err != nil {
-				t := shipyard.MessageType_ERROR
-				s.closeConnection(msg, &t, sc)
-				break
-			}
-
-			// send the data back to the server
-			s.logger.Debug("Sending data to remote connection", "rid", msg.RequestId)
-			sc.Send(&shipyard.OpenData{ServiceId: msg.ServiceId, RequestId: msg.RequestId, Type: shipyard.MessageType_DATA, Data: data[:i]})
-
-			// all read close the connection
-			if i < maxBuffer {
-				t := shipyard.MessageType_READ_DONE
-				s.closeConnection(msg, &t, sc)
-				break
-			}
-		}
-	}
-}
-
-func (s *Server) writeData(msg *shipyard.OpenData, sc shipyard.RemoteConnection_OpenLocalServer) {
-	con, ok := s.tcpConn[msg.RequestId]
-	if ok {
-		_, err := con.Write(msg.Data)
-		if err != nil {
-			s.logger.Error("Unable to write data to connection", "error", err)
-		}
-	}
-}
-
-// Shutdown the server and cleanup resources
+// Shutdown the server, closing all connections and listeners
 func (s *Server) Shutdown() {
-	for _, v := range s.listeners {
-		v.Close()
+	s.log.Info("Shutting down")
+
+	// close all listeners
+	s.log.Info("Closing all TCPListeners")
+	for _, t := range s.services {
+		if t.listener != nil {
+			t.listener.Close()
+		}
 	}
+}
+
+// get a gRPC client for the given address
+func (s *Server) getClient(addr string) (shipyard.RemoteConnectionClient, error) {
+
+	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions())
+	if err != nil {
+		return nil, err
+	}
+
+	return shipyard.NewRemoteConnectionClient(conn), nil
+}
+
+func (s *Server) handleRemoteConnection(id string, conn shipyard.RemoteConnection_OpenStreamClient) {
+	// wrap in a go func to immediately return
+	go func(id string, conn shipyard.RemoteConnection_OpenStreamClient) {
+		for {
+			msg, err := conn.Recv()
+			if err != nil {
+				s.log.Error("Error receiving client message", "id", id, "error", err)
+				time.Sleep(1 * time.Second) // backoff for now, we need to handle failure better
+				break
+			}
+
+			s.log.Debug("Received client message", "type", msg.Type, "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+			switch msg.Type {
+			case shipyard.MessageType_DATA:
+				s.log.Trace("Received client message", "id", id, "msg", msg)
+				// if we get data send it to the local service instance
+				// do we have a local connection, if not create one
+				svc := s.findService(id)
+				c, ok := svc.localConnections[msg.ConnectionId]
+				if !ok {
+					var err error
+					c, err = net.Dial("tcp", svc.localServiceAddr)
+					if err != nil {
+						s.log.Error("Unable to create connection to remote", "addr", svc.localServiceAddr)
+						continue
+					}
+
+					svc.localConnections[msg.ConnectionId] = c
+				}
+
+				s.log.Debug("Writing data to local", "serviceID", id, "connectionID", msg.ConnectionId)
+				c.Write(msg.Data)
+			case shipyard.MessageType_WRITE_DONE:
+				s.readData(msg)
+			}
+		}
+	}(id, conn)
+}
+
+// read data from the local and send back to the server
+func (s *Server) readData(msg *shipyard.OpenData) {
+
+	svc := s.findService(msg.ServiceId)
+	con, ok := svc.localConnections[msg.ConnectionId]
+	if !ok {
+		s.log.Error("No connection to read from", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+		return
+	}
+
+	for {
+		s.log.Debug("Reading data from local server", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+
+		maxBuffer := 4096
+		data := make([]byte, maxBuffer)
+
+		i, err := con.Read(data) // read 4k of data
+
+		// if we had a read error tell the server
+		if i == 0 || err != nil {
+			// The server has closed the connection
+			if err == io.EOF {
+				// notify the remote
+				svc.remoteConnection.Send(&shipyard.OpenData{ServiceId: msg.ServiceId, ConnectionId: msg.ConnectionId, Type: shipyard.MessageType_CLOSED})
+			} else {
+				s.log.Error("Error reading from connection", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId, "error", err)
+			}
+
+			// cleanup
+			delete(svc.localConnections, msg.ConnectionId)
+			break
+		}
+
+		// send the data back to the server
+		s.log.Debug("Sending data to remote connection", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+		svc.remoteConnection.Send(&shipyard.OpenData{ServiceId: msg.ServiceId, ConnectionId: msg.ConnectionId, Type: shipyard.MessageType_DATA, Data: data[:i]})
+
+		// all read close the connection
+		if i < maxBuffer {
+			//t := shipyard.MessageType_READ_DONE
+			//s.closeConnection(msg, &t, sc)
+			break
+		}
+	}
+}
+
+func (s *Server) handleListener(id string, l net.Listener) {
+	// wrap in a go func to immediately return
+	go func(id string, l net.Listener) {
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				s.log.Error("Error accepting connection", "id", id, "error", err)
+				break
+			}
+
+			s.log.Debug("Handle new connection", "id", id)
+			s.handleConnection(id, conn)
+		}
+	}(id, l)
+}
+
+func (s *Server) handleConnection(id string, conn net.Conn) {
+	// generate a unique id for the connection
+	connID := uuid.New().String()
+	svc := s.findService(id)
+	svc.localConnections[connID] = conn
+
+	// read the data from the connection
+	for {
+		maxBuffer := 4096
+		data := make([]byte, maxBuffer)
+
+		s.log.Debug("Starting read", "serviceID", id, "connID", connID)
+
+		// read 4K of data from the connection
+		i, err := conn.Read(data)
+
+		// unable to read the data, kill the connection
+		if err != nil || i == 0 {
+			if err == io.EOF {
+				// the connection has closed
+				s.log.Debug("Connection closed", "serviceID", id, "connID", connID, "error", err)
+			} else {
+				s.log.Error("Unable to read data from the connection", "serviceID", id, "connID", connID, "error", err)
+			}
+
+			delete(svc.localConnections, connID)
+			break
+		}
+
+		s.log.Trace("Read data for connection", "serviceID", id, "connID", connID, "len", i, "data", string(data[:i]))
+
+		// send the read chunk of data over the gRPC stream
+		// check there is a remote connection if not just return
+		if gconn := s.findService(id).remoteConnection; gconn != nil {
+			s.log.Debug("Sending data to stream", "serviceID", id, "connID", connID, "data", string(data[:i]))
+			gconn.Send(&shipyard.OpenData{ServiceId: id, ConnectionId: connID, Type: shipyard.MessageType_DATA, Data: data[:i]})
+
+			// we have read all the data send the other end a message so it knows it can now send a response
+			if i < maxBuffer {
+				s.log.Debug("All data read", "serviceID", id, "connID", connID)
+				gconn.Send(&shipyard.OpenData{ServiceId: id, ConnectionId: connID, Type: shipyard.MessageType_WRITE_DONE})
+			}
+		} else {
+			s.log.Error("No stream for connection", "serviceID", id, "connID", connID)
+			break
+		}
+
+	}
+
 }

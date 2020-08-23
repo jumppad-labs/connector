@@ -4,3 +4,6 @@ setup_proto:
 
 proto:
 	protoc -I ./protos protos/server.proto --go_out=plugins=grpc:protos/shipyard
+
+build_docker:
+	goreleaser release --rm-dist --snapshot

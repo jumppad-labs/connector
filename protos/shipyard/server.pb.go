@@ -27,27 +27,33 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 type MessageType int32
 
 const (
-	MessageType_DATA           MessageType = 0
-	MessageType_NEW_CONNECTION MessageType = 1
-	MessageType_WRITE_DONE     MessageType = 2
-	MessageType_READ_DONE      MessageType = 3
-	MessageType_ERROR          MessageType = 4
+	MessageType_HELLO          MessageType = 0
+	MessageType_CLOSED         MessageType = 1
+	MessageType_DATA           MessageType = 2
+	MessageType_NEW_CONNECTION MessageType = 3
+	MessageType_WRITE_DONE     MessageType = 4
+	MessageType_READ_DONE      MessageType = 5
+	MessageType_ERROR          MessageType = 6
 )
 
 var MessageType_name = map[int32]string{
-	0: "DATA",
-	1: "NEW_CONNECTION",
-	2: "WRITE_DONE",
-	3: "READ_DONE",
-	4: "ERROR",
+	0: "HELLO",
+	1: "CLOSED",
+	2: "DATA",
+	3: "NEW_CONNECTION",
+	4: "WRITE_DONE",
+	5: "READ_DONE",
+	6: "ERROR",
 }
 
 var MessageType_value = map[string]int32{
-	"DATA":           0,
-	"NEW_CONNECTION": 1,
-	"WRITE_DONE":     2,
-	"READ_DONE":      3,
-	"ERROR":          4,
+	"HELLO":          0,
+	"CLOSED":         1,
+	"DATA":           2,
+	"NEW_CONNECTION": 3,
+	"WRITE_DONE":     4,
+	"READ_DONE":      5,
+	"ERROR":          6,
 }
 
 func (x MessageType) String() string {
@@ -56,6 +62,31 @@ func (x MessageType) String() string {
 
 func (MessageType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_ad098daeda4239f7, []int{0}
+}
+
+type ServiceType int32
+
+const (
+	ServiceType_LOCAL  ServiceType = 0
+	ServiceType_REMOTE ServiceType = 1
+)
+
+var ServiceType_name = map[int32]string{
+	0: "LOCAL",
+	1: "REMOTE",
+}
+
+var ServiceType_value = map[string]int32{
+	"LOCAL":  0,
+	"REMOTE": 1,
+}
+
+func (x ServiceType) String() string {
+	return proto.EnumName(ServiceType_name, int32(x))
+}
+
+func (ServiceType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{1}
 }
 
 type NullResponse struct {
@@ -91,7 +122,7 @@ var xxx_messageInfo_NullResponse proto.InternalMessageInfo
 
 type OpenData struct {
 	ServiceId            string      `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
-	RequestId            string      `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	ConnectionId         string      `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
 	Location             string      `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
 	Type                 MessageType `protobuf:"varint,4,opt,name=type,proto3,enum=shipyard.MessageType" json:"type,omitempty"`
 	Data                 []byte      `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
@@ -132,9 +163,9 @@ func (m *OpenData) GetServiceId() string {
 	return ""
 }
 
-func (m *OpenData) GetRequestId() string {
+func (m *OpenData) GetConnectionId() string {
 	if m != nil {
-		return m.RequestId
+		return m.ConnectionId
 	}
 	return ""
 }
@@ -150,7 +181,7 @@ func (m *OpenData) GetType() MessageType {
 	if m != nil {
 		return m.Type
 	}
-	return MessageType_DATA
+	return MessageType_HELLO
 }
 
 func (m *OpenData) GetData() []byte {
@@ -161,12 +192,16 @@ func (m *OpenData) GetData() []byte {
 }
 
 type ExposeRequest struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Port                 int32    `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Matches              []*Match `protobuf:"bytes,4,rep,name=matches,proto3" json:"matches,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	Name                 string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	RemoteServerAddr     string      `protobuf:"bytes,2,opt,name=remoteServerAddr,proto3" json:"remoteServerAddr,omitempty"`
+	ServiceAddr          string      `protobuf:"bytes,3,opt,name=serviceAddr,proto3" json:"serviceAddr,omitempty"`
+	LocalPort            int32       `protobuf:"varint,4,opt,name=localPort,proto3" json:"localPort,omitempty"`
+	RemotePort           int32       `protobuf:"varint,5,opt,name=remotePort,proto3" json:"remotePort,omitempty"`
+	Type                 ServiceType `protobuf:"varint,6,opt,name=type,proto3,enum=shipyard.ServiceType" json:"type,omitempty"`
+	Matches              []*Match    `protobuf:"bytes,7,rep,name=matches,proto3" json:"matches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *ExposeRequest) Reset()         { *m = ExposeRequest{} }
@@ -201,11 +236,39 @@ func (m *ExposeRequest) GetName() string {
 	return ""
 }
 
-func (m *ExposeRequest) GetPort() int32 {
+func (m *ExposeRequest) GetRemoteServerAddr() string {
 	if m != nil {
-		return m.Port
+		return m.RemoteServerAddr
+	}
+	return ""
+}
+
+func (m *ExposeRequest) GetServiceAddr() string {
+	if m != nil {
+		return m.ServiceAddr
+	}
+	return ""
+}
+
+func (m *ExposeRequest) GetLocalPort() int32 {
+	if m != nil {
+		return m.LocalPort
 	}
 	return 0
+}
+
+func (m *ExposeRequest) GetRemotePort() int32 {
+	if m != nil {
+		return m.RemotePort
+	}
+	return 0
+}
+
+func (m *ExposeRequest) GetType() ServiceType {
+	if m != nil {
+		return m.Type
+	}
+	return ServiceType_LOCAL
 }
 
 func (m *ExposeRequest) GetMatches() []*Match {
@@ -254,8 +317,56 @@ func (m *ExposeResponse) GetId() string {
 	return ""
 }
 
+type ListenerRequest struct {
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	LocalPort            int32    `protobuf:"varint,2,opt,name=localPort,proto3" json:"localPort,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListenerRequest) Reset()         { *m = ListenerRequest{} }
+func (m *ListenerRequest) String() string { return proto.CompactTextString(m) }
+func (*ListenerRequest) ProtoMessage()    {}
+func (*ListenerRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{4}
+}
+
+func (m *ListenerRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListenerRequest.Unmarshal(m, b)
+}
+func (m *ListenerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListenerRequest.Marshal(b, m, deterministic)
+}
+func (m *ListenerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListenerRequest.Merge(m, src)
+}
+func (m *ListenerRequest) XXX_Size() int {
+	return xxx_messageInfo_ListenerRequest.Size(m)
+}
+func (m *ListenerRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListenerRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListenerRequest proto.InternalMessageInfo
+
+func (m *ListenerRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *ListenerRequest) GetLocalPort() int32 {
+	if m != nil {
+		return m.LocalPort
+	}
+	return 0
+}
+
 type DestroyRequest struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ServerAddr           string   `protobuf:"bytes,2,opt,name=serverAddr,proto3" json:"serverAddr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -265,7 +376,7 @@ func (m *DestroyRequest) Reset()         { *m = DestroyRequest{} }
 func (m *DestroyRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyRequest) ProtoMessage()    {}
 func (*DestroyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{4}
+	return fileDescriptor_ad098daeda4239f7, []int{5}
 }
 
 func (m *DestroyRequest) XXX_Unmarshal(b []byte) error {
@@ -293,36 +404,12 @@ func (m *DestroyRequest) GetId() string {
 	return ""
 }
 
-type RemoteRequest struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+func (m *DestroyRequest) GetServerAddr() string {
+	if m != nil {
+		return m.ServerAddr
+	}
+	return ""
 }
-
-func (m *RemoteRequest) Reset()         { *m = RemoteRequest{} }
-func (m *RemoteRequest) String() string { return proto.CompactTextString(m) }
-func (*RemoteRequest) ProtoMessage()    {}
-func (*RemoteRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{5}
-}
-
-func (m *RemoteRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_RemoteRequest.Unmarshal(m, b)
-}
-func (m *RemoteRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_RemoteRequest.Marshal(b, m, deterministic)
-}
-func (m *RemoteRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_RemoteRequest.Merge(m, src)
-}
-func (m *RemoteRequest) XXX_Size() int {
-	return xxx_messageInfo_RemoteRequest.Size(m)
-}
-func (m *RemoteRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_RemoteRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_RemoteRequest proto.InternalMessageInfo
 
 type Match struct {
 	Http                 *Http    `protobuf:"bytes,1,opt,name=http,proto3" json:"http,omitempty"`
@@ -490,12 +577,13 @@ var xxx_messageInfo_Grpc proto.InternalMessageInfo
 
 func init() {
 	proto.RegisterEnum("shipyard.MessageType", MessageType_name, MessageType_value)
+	proto.RegisterEnum("shipyard.ServiceType", ServiceType_name, ServiceType_value)
 	proto.RegisterType((*NullResponse)(nil), "shipyard.NullResponse")
 	proto.RegisterType((*OpenData)(nil), "shipyard.OpenData")
 	proto.RegisterType((*ExposeRequest)(nil), "shipyard.ExposeRequest")
 	proto.RegisterType((*ExposeResponse)(nil), "shipyard.ExposeResponse")
+	proto.RegisterType((*ListenerRequest)(nil), "shipyard.ListenerRequest")
 	proto.RegisterType((*DestroyRequest)(nil), "shipyard.DestroyRequest")
-	proto.RegisterType((*RemoteRequest)(nil), "shipyard.RemoteRequest")
 	proto.RegisterType((*Match)(nil), "shipyard.Match")
 	proto.RegisterType((*Http)(nil), "shipyard.Http")
 	proto.RegisterType((*Header)(nil), "shipyard.Header")
@@ -507,39 +595,47 @@ func init() {
 }
 
 var fileDescriptor_ad098daeda4239f7 = []byte{
-	// 510 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0x4d, 0x6f, 0xda, 0x40,
-	0x10, 0xad, 0xc1, 0x10, 0x18, 0xc0, 0xb1, 0xa6, 0x5f, 0x16, 0x52, 0x25, 0xe4, 0x13, 0xc9, 0x01,
-	0x55, 0xee, 0xa1, 0xbd, 0x22, 0xb0, 0x28, 0x52, 0x6b, 0x57, 0x5b, 0xaa, 0x1c, 0xd1, 0xc6, 0x1e,
-	0x05, 0x24, 0xb0, 0xb7, 0xde, 0x4d, 0x15, 0x7e, 0x49, 0x7f, 0x40, 0xff, 0x68, 0xb5, 0x6b, 0x3b,
-	0x40, 0x9b, 0x4b, 0x6e, 0x3b, 0xf3, 0xde, 0xec, 0xbc, 0x9d, 0x79, 0x0b, 0x7d, 0x49, 0xc5, 0x2f,
-	0x2a, 0x26, 0xa2, 0xc8, 0x55, 0x8e, 0x1d, 0xb9, 0xd9, 0x8a, 0x03, 0x2f, 0x52, 0xdf, 0x81, 0x7e,
-	0x74, 0xbf, 0xdb, 0x31, 0x92, 0x22, 0xcf, 0x24, 0xf9, 0x7f, 0x2c, 0xe8, 0xc4, 0x82, 0xb2, 0x39,
-	0x57, 0x1c, 0xdf, 0x01, 0xe8, 0xb2, 0x6d, 0x42, 0xeb, 0x6d, 0xea, 0x59, 0x23, 0x6b, 0xdc, 0x65,
-	0xdd, 0x2a, 0xb3, 0x4c, 0x35, 0x5c, 0xd0, 0xcf, 0x7b, 0x92, 0x4a, 0xc3, 0x8d, 0x12, 0xae, 0x32,
-	0xcb, 0x14, 0x87, 0xd0, 0xd9, 0xe5, 0x09, 0x57, 0xdb, 0x3c, 0xf3, 0x9a, 0x06, 0x7c, 0x8c, 0xf1,
-	0x0a, 0x6c, 0x75, 0x10, 0xe4, 0xd9, 0x23, 0x6b, 0xec, 0x04, 0xaf, 0x27, 0xb5, 0x9e, 0xc9, 0x57,
-	0x92, 0x92, 0xdf, 0xd1, 0xea, 0x20, 0x88, 0x19, 0x0a, 0x22, 0xd8, 0x29, 0x57, 0xdc, 0x6b, 0x8d,
-	0xac, 0x71, 0x9f, 0x99, 0xb3, 0x7f, 0x0b, 0x83, 0xf0, 0x41, 0xe4, 0x92, 0x58, 0xd9, 0x4d, 0x93,
-	0x32, 0xbe, 0xa7, 0x4a, 0xa3, 0x39, 0xeb, 0x9c, 0xc8, 0x0b, 0x65, 0x84, 0xb5, 0x98, 0x39, 0xe3,
-	0x15, 0x5c, 0xec, 0xb9, 0x4a, 0x36, 0x24, 0x3d, 0x7b, 0xd4, 0x1c, 0xf7, 0x82, 0xcb, 0x93, 0xd6,
-	0x1a, 0x60, 0x35, 0xee, 0x8f, 0xc0, 0xa9, 0x7b, 0x94, 0xb3, 0x41, 0x07, 0x1a, 0x8f, 0x63, 0x68,
-	0x6c, 0x53, 0xcd, 0x98, 0x93, 0x54, 0x45, 0x7e, 0xa8, 0x65, 0xfc, 0xcb, 0xb8, 0x84, 0x01, 0xa3,
-	0x7d, 0xae, 0x6a, 0x9d, 0x7e, 0x0c, 0x2d, 0xd3, 0x06, 0x7d, 0xb0, 0x37, 0x4a, 0x09, 0xc3, 0xed,
-	0x05, 0xce, 0x51, 0xc5, 0x67, 0xa5, 0x04, 0x33, 0x98, 0xe6, 0xdc, 0xb1, 0x6f, 0x33, 0xf3, 0x80,
-	0x33, 0xce, 0xa2, 0x10, 0x09, 0x33, 0x98, 0x1f, 0x80, 0xad, 0x2b, 0xf0, 0x1a, 0x2e, 0x36, 0xc4,
-	0x53, 0x2a, 0xa4, 0x67, 0x99, 0x87, 0xb9, 0x27, 0x57, 0x1a, 0x80, 0xd5, 0x04, 0x3f, 0x80, 0x76,
-	0x99, 0x7a, 0x72, 0x6c, 0xaf, 0xa0, 0x45, 0x0f, 0x3c, 0x51, 0xd5, 0x42, 0xcb, 0xc0, 0x6f, 0x83,
-	0xad, 0xbb, 0x5e, 0xff, 0x80, 0xde, 0xc9, 0x8a, 0xb0, 0x03, 0xf6, 0x7c, 0xba, 0x9a, 0xba, 0x2f,
-	0x10, 0xc1, 0x89, 0xc2, 0x9b, 0xf5, 0x2c, 0x8e, 0xa2, 0x70, 0xb6, 0x5a, 0xc6, 0x91, 0x6b, 0xa1,
-	0x03, 0x70, 0xc3, 0x96, 0xab, 0x70, 0x3d, 0x8f, 0xa3, 0xd0, 0x6d, 0xe0, 0x00, 0xba, 0x2c, 0x9c,
-	0xce, 0xcb, 0xb0, 0x89, 0x5d, 0x68, 0x85, 0x8c, 0xc5, 0xcc, 0xb5, 0x83, 0xdf, 0x0d, 0x70, 0xcb,
-	0x49, 0xcd, 0xf2, 0x2c, 0xa3, 0xc4, 0x98, 0xe4, 0x23, 0x74, 0xb5, 0x15, 0xbf, 0xe4, 0x09, 0xdf,
-	0x21, 0x1e, 0xdf, 0x53, 0xfb, 0x73, 0xf8, 0x44, 0x6e, 0x6c, 0xbd, 0xb7, 0xf0, 0x13, 0x80, 0x8e,
-	0xcb, 0x0b, 0x9f, 0x55, 0xb9, 0x00, 0x2c, 0x97, 0x6e, 0x9a, 0x7e, 0x2f, 0xad, 0x8e, 0x6f, 0x8f,
-	0xec, 0x33, 0xdb, 0x0d, 0xbd, 0xff, 0x81, 0xca, 0x2b, 0x0b, 0x78, 0x59, 0x79, 0xe3, 0xec, 0xa6,
-	0x93, 0x82, 0x73, 0xeb, 0x0c, 0xdf, 0x1c, 0x91, 0xd3, 0x0f, 0x79, 0xdb, 0x36, 0x3f, 0xf6, 0xc3,
-	0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x8f, 0xa9, 0xc6, 0x08, 0xc1, 0x03, 0x00, 0x00,
+	// 636 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xcb, 0x6e, 0x9b, 0x40,
+	0x14, 0x2d, 0x04, 0x1c, 0xfb, 0xda, 0x21, 0xe8, 0xaa, 0x0f, 0x6a, 0xb5, 0x91, 0x45, 0xbb, 0x70,
+	0xbc, 0x88, 0x2a, 0x77, 0xd3, 0x5d, 0xeb, 0x00, 0x6a, 0x2c, 0x39, 0x26, 0x1a, 0x5b, 0xca, 0xd2,
+	0xa2, 0x70, 0x15, 0x5b, 0xb2, 0x81, 0xc2, 0xa4, 0x8a, 0x3f, 0xa0, 0x1f, 0xd3, 0xaf, 0xea, 0xaf,
+	0x54, 0x0c, 0x60, 0xb0, 0x93, 0xac, 0xba, 0x63, 0xce, 0x39, 0x73, 0x5f, 0x9c, 0x3b, 0xd0, 0x49,
+	0x29, 0xf9, 0x45, 0xc9, 0x45, 0x9c, 0x44, 0x3c, 0xc2, 0x66, 0xba, 0x5c, 0xc5, 0x5b, 0x2f, 0x09,
+	0x4c, 0x0d, 0x3a, 0xd3, 0xfb, 0xf5, 0x9a, 0x51, 0x1a, 0x47, 0x61, 0x4a, 0xe6, 0x1f, 0x09, 0x9a,
+	0x6e, 0x4c, 0xa1, 0xed, 0x71, 0x0f, 0xdf, 0x03, 0x64, 0xd7, 0x56, 0x3e, 0x2d, 0x56, 0x81, 0x21,
+	0xf5, 0xa4, 0x7e, 0x8b, 0xb5, 0x0a, 0x64, 0x1c, 0xe0, 0x07, 0x38, 0xf1, 0xa3, 0x30, 0x24, 0x9f,
+	0xaf, 0xa2, 0x30, 0x53, 0xc8, 0x42, 0xd1, 0xa9, 0xc0, 0x71, 0x80, 0x5d, 0x68, 0xae, 0x23, 0xdf,
+	0xcb, 0x4e, 0xc6, 0x91, 0xe0, 0x77, 0x67, 0x3c, 0x07, 0x85, 0x6f, 0x63, 0x32, 0x94, 0x9e, 0xd4,
+	0xd7, 0x86, 0xaf, 0x2e, 0xca, 0xaa, 0x2e, 0xae, 0x29, 0x4d, 0xbd, 0x3b, 0x9a, 0x6f, 0x63, 0x62,
+	0x42, 0x82, 0x08, 0x4a, 0xe0, 0x71, 0xcf, 0x50, 0x7b, 0x52, 0xbf, 0xc3, 0xc4, 0xb7, 0xf9, 0x5b,
+	0x86, 0x13, 0xe7, 0x21, 0x8e, 0x52, 0x62, 0xf4, 0xf3, 0x9e, 0x52, 0x9e, 0xa9, 0x42, 0x6f, 0x43,
+	0x45, 0xa9, 0xe2, 0x1b, 0x07, 0xa0, 0x27, 0xb4, 0x89, 0x38, 0xcd, 0xc4, 0x04, 0x46, 0x41, 0x90,
+	0x14, 0x85, 0x3e, 0xc2, 0xb1, 0x07, 0xed, 0xa2, 0x3d, 0x21, 0xcb, 0xeb, 0xad, 0x43, 0xf8, 0x0e,
+	0x5a, 0x59, 0xf9, 0xeb, 0x9b, 0x28, 0xe1, 0xa2, 0x6e, 0x95, 0x55, 0x00, 0x9e, 0x01, 0xe4, 0x31,
+	0x05, 0xad, 0x0a, 0xba, 0x86, 0xec, 0x1a, 0x6e, 0x1c, 0x36, 0x3c, 0xcb, 0x53, 0xd4, 0x1a, 0x3e,
+	0x87, 0xe3, 0x8d, 0xc7, 0xfd, 0x25, 0xa5, 0xc6, 0x71, 0xef, 0xa8, 0xdf, 0x1e, 0x9e, 0xd6, 0xc6,
+	0x93, 0x11, 0xac, 0xe4, 0xcd, 0x1e, 0x68, 0xe5, 0x18, 0xf2, 0xbf, 0x88, 0x1a, 0xc8, 0xbb, 0x1f,
+	0x26, 0xaf, 0x02, 0xf3, 0x2b, 0x9c, 0x4e, 0x56, 0x29, 0xa7, 0x90, 0x92, 0x72, 0x54, 0x07, 0x92,
+	0xfd, 0xc6, 0xe4, 0x83, 0xc6, 0xcc, 0x6f, 0xa0, 0xd9, 0x94, 0xf2, 0x24, 0xda, 0x3e, 0x77, 0xff,
+	0x2c, 0xf7, 0xca, 0xde, 0x80, 0x6b, 0x88, 0xe9, 0x82, 0x2a, 0xca, 0x46, 0x13, 0x94, 0x25, 0xe7,
+	0xb1, 0xb8, 0xda, 0x1e, 0x6a, 0x55, 0x57, 0x57, 0x9c, 0xc7, 0x4c, 0x70, 0x99, 0xe6, 0x8e, 0xdd,
+	0x58, 0x22, 0xcc, 0x9e, 0xe6, 0x7b, 0x12, 0xfb, 0x4c, 0x70, 0xe6, 0x10, 0x94, 0xec, 0x06, 0x0e,
+	0xe0, 0x78, 0x49, 0x5e, 0x40, 0x49, 0x6a, 0x48, 0x62, 0x50, 0x7a, 0x2d, 0xa4, 0x20, 0x58, 0x29,
+	0x30, 0x87, 0xd0, 0xc8, 0xa1, 0x27, 0x9d, 0xf2, 0x12, 0x54, 0x7a, 0xf0, 0x7c, 0x5e, 0x54, 0x9f,
+	0x1f, 0xcc, 0x06, 0x28, 0x59, 0xd6, 0xc1, 0x1a, 0xda, 0x35, 0x5b, 0x62, 0x0b, 0xd4, 0x2b, 0x67,
+	0x32, 0x71, 0xf5, 0x17, 0x08, 0xd0, 0xb0, 0x26, 0xee, 0xcc, 0xb1, 0x75, 0x09, 0x9b, 0xa0, 0xd8,
+	0xa3, 0xf9, 0x48, 0x97, 0x11, 0x41, 0x9b, 0x3a, 0xb7, 0x0b, 0xcb, 0x9d, 0x4e, 0x1d, 0x6b, 0x3e,
+	0x76, 0xa7, 0xfa, 0x11, 0x6a, 0x00, 0xb7, 0x6c, 0x3c, 0x77, 0x16, 0xb6, 0x3b, 0x75, 0x74, 0x05,
+	0x4f, 0xa0, 0xc5, 0x9c, 0x91, 0x9d, 0x1f, 0xd5, 0x2c, 0xa6, 0xc3, 0x98, 0xcb, 0xf4, 0xc6, 0xe0,
+	0x23, 0xb4, 0x6b, 0x9e, 0xc8, 0x98, 0x89, 0x6b, 0x8d, 0x26, 0x79, 0x36, 0xe6, 0x5c, 0xbb, 0x73,
+	0x47, 0x97, 0x86, 0x7f, 0x65, 0xd0, 0x99, 0xb0, 0x97, 0xb5, 0xdb, 0x39, 0xfc, 0x02, 0x90, 0x6d,
+	0xf0, 0x8c, 0x27, 0xe4, 0x6d, 0x10, 0xab, 0x69, 0x94, 0x7b, 0xdd, 0x7d, 0x02, 0xeb, 0x4b, 0x9f,
+	0x24, 0xbc, 0x2c, 0xf7, 0xa9, 0x48, 0x8d, 0x6f, 0x2a, 0xe1, 0xde, 0xa2, 0x75, 0x8d, 0xc7, 0x44,
+	0x61, 0xbd, 0xcb, 0x9d, 0x53, 0xca, 0x20, 0x35, 0xed, 0xbe, 0x87, 0xba, 0xaf, 0x2b, 0xa6, 0xfe,
+	0x08, 0xa1, 0x05, 0x9a, 0x95, 0x90, 0xc7, 0xa9, 0x34, 0x2d, 0xbe, 0xad, 0x94, 0x07, 0x46, 0x7e,
+	0x36, 0x88, 0x0d, 0xa7, 0x45, 0xba, 0xff, 0x88, 0xf2, 0xa3, 0x21, 0x1e, 0xcc, 0xcf, 0xff, 0x02,
+	0x00, 0x00, 0xff, 0xff, 0xb7, 0x02, 0x15, 0x3c, 0x40, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -554,14 +650,16 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RemoteConnectionClient interface {
-	// Open a stream to the remote TCP port
-	OpenLocal(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenLocalClient, error)
-	// Open a Connection from a local host to a remote service
-	OpenRemote(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenRemoteClient, error)
+	// Open a stream between two servers
+	OpenStream(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenStreamClient, error)
 	// Open a new TCP port for the local service on the server and start listening
-	ExposeLocalService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error)
+	ExposeService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error)
 	// Close the remote TCP port and remove all resources
-	DestroyLocalService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	// Create a TCP socket and listen for traffic
+	CreateListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	// Close  a local TCP socket and stop listenng for traffic
+	DestroyListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error)
 }
 
 type remoteConnectionClient struct {
@@ -572,30 +670,30 @@ func NewRemoteConnectionClient(cc grpc.ClientConnInterface) RemoteConnectionClie
 	return &remoteConnectionClient{cc}
 }
 
-func (c *remoteConnectionClient) OpenLocal(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenLocalClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[0], "/shipyard.RemoteConnection/OpenLocal", opts...)
+func (c *remoteConnectionClient) OpenStream(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[0], "/shipyard.RemoteConnection/OpenStream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &remoteConnectionOpenLocalClient{stream}
+	x := &remoteConnectionOpenStreamClient{stream}
 	return x, nil
 }
 
-type RemoteConnection_OpenLocalClient interface {
+type RemoteConnection_OpenStreamClient interface {
 	Send(*OpenData) error
 	Recv() (*OpenData, error)
 	grpc.ClientStream
 }
 
-type remoteConnectionOpenLocalClient struct {
+type remoteConnectionOpenStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *remoteConnectionOpenLocalClient) Send(m *OpenData) error {
+func (x *remoteConnectionOpenStreamClient) Send(m *OpenData) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *remoteConnectionOpenLocalClient) Recv() (*OpenData, error) {
+func (x *remoteConnectionOpenStreamClient) Recv() (*OpenData, error) {
 	m := new(OpenData)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -603,49 +701,36 @@ func (x *remoteConnectionOpenLocalClient) Recv() (*OpenData, error) {
 	return m, nil
 }
 
-func (c *remoteConnectionClient) OpenRemote(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenRemoteClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[1], "/shipyard.RemoteConnection/OpenRemote", opts...)
-	if err != nil {
-		return nil, err
-	}
-	x := &remoteConnectionOpenRemoteClient{stream}
-	return x, nil
-}
-
-type RemoteConnection_OpenRemoteClient interface {
-	Send(*OpenData) error
-	Recv() (*OpenData, error)
-	grpc.ClientStream
-}
-
-type remoteConnectionOpenRemoteClient struct {
-	grpc.ClientStream
-}
-
-func (x *remoteConnectionOpenRemoteClient) Send(m *OpenData) error {
-	return x.ClientStream.SendMsg(m)
-}
-
-func (x *remoteConnectionOpenRemoteClient) Recv() (*OpenData, error) {
-	m := new(OpenData)
-	if err := x.ClientStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func (c *remoteConnectionClient) ExposeLocalService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error) {
+func (c *remoteConnectionClient) ExposeService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error) {
 	out := new(ExposeResponse)
-	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/ExposeLocalService", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/ExposeService", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *remoteConnectionClient) DestroyLocalService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+func (c *remoteConnectionClient) DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error) {
 	out := new(NullResponse)
-	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyLocalService", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *remoteConnectionClient) CreateListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+	out := new(NullResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/CreateListener", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *remoteConnectionClient) DestroyListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+	out := new(NullResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyListener", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -654,56 +739,61 @@ func (c *remoteConnectionClient) DestroyLocalService(ctx context.Context, in *De
 
 // RemoteConnectionServer is the server API for RemoteConnection service.
 type RemoteConnectionServer interface {
-	// Open a stream to the remote TCP port
-	OpenLocal(RemoteConnection_OpenLocalServer) error
-	// Open a Connection from a local host to a remote service
-	OpenRemote(RemoteConnection_OpenRemoteServer) error
+	// Open a stream between two servers
+	OpenStream(RemoteConnection_OpenStreamServer) error
 	// Open a new TCP port for the local service on the server and start listening
-	ExposeLocalService(context.Context, *ExposeRequest) (*ExposeResponse, error)
+	ExposeService(context.Context, *ExposeRequest) (*ExposeResponse, error)
 	// Close the remote TCP port and remove all resources
-	DestroyLocalService(context.Context, *DestroyRequest) (*NullResponse, error)
+	DestroyService(context.Context, *DestroyRequest) (*NullResponse, error)
+	// Create a TCP socket and listen for traffic
+	CreateListener(context.Context, *ListenerRequest) (*NullResponse, error)
+	// Close  a local TCP socket and stop listenng for traffic
+	DestroyListener(context.Context, *ListenerRequest) (*NullResponse, error)
 }
 
 // UnimplementedRemoteConnectionServer can be embedded to have forward compatible implementations.
 type UnimplementedRemoteConnectionServer struct {
 }
 
-func (*UnimplementedRemoteConnectionServer) OpenLocal(srv RemoteConnection_OpenLocalServer) error {
-	return status.Errorf(codes.Unimplemented, "method OpenLocal not implemented")
+func (*UnimplementedRemoteConnectionServer) OpenStream(srv RemoteConnection_OpenStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method OpenStream not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) OpenRemote(srv RemoteConnection_OpenRemoteServer) error {
-	return status.Errorf(codes.Unimplemented, "method OpenRemote not implemented")
+func (*UnimplementedRemoteConnectionServer) ExposeService(ctx context.Context, req *ExposeRequest) (*ExposeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExposeService not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) ExposeLocalService(ctx context.Context, req *ExposeRequest) (*ExposeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ExposeLocalService not implemented")
+func (*UnimplementedRemoteConnectionServer) DestroyService(ctx context.Context, req *DestroyRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DestroyService not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) DestroyLocalService(ctx context.Context, req *DestroyRequest) (*NullResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DestroyLocalService not implemented")
+func (*UnimplementedRemoteConnectionServer) CreateListener(ctx context.Context, req *ListenerRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateListener not implemented")
+}
+func (*UnimplementedRemoteConnectionServer) DestroyListener(ctx context.Context, req *ListenerRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DestroyListener not implemented")
 }
 
 func RegisterRemoteConnectionServer(s *grpc.Server, srv RemoteConnectionServer) {
 	s.RegisterService(&_RemoteConnection_serviceDesc, srv)
 }
 
-func _RemoteConnection_OpenLocal_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RemoteConnectionServer).OpenLocal(&remoteConnectionOpenLocalServer{stream})
+func _RemoteConnection_OpenStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RemoteConnectionServer).OpenStream(&remoteConnectionOpenStreamServer{stream})
 }
 
-type RemoteConnection_OpenLocalServer interface {
+type RemoteConnection_OpenStreamServer interface {
 	Send(*OpenData) error
 	Recv() (*OpenData, error)
 	grpc.ServerStream
 }
 
-type remoteConnectionOpenLocalServer struct {
+type remoteConnectionOpenStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *remoteConnectionOpenLocalServer) Send(m *OpenData) error {
+func (x *remoteConnectionOpenStreamServer) Send(m *OpenData) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *remoteConnectionOpenLocalServer) Recv() (*OpenData, error) {
+func (x *remoteConnectionOpenStreamServer) Recv() (*OpenData, error) {
 	m := new(OpenData)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -711,64 +801,74 @@ func (x *remoteConnectionOpenLocalServer) Recv() (*OpenData, error) {
 	return m, nil
 }
 
-func _RemoteConnection_OpenRemote_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RemoteConnectionServer).OpenRemote(&remoteConnectionOpenRemoteServer{stream})
-}
-
-type RemoteConnection_OpenRemoteServer interface {
-	Send(*OpenData) error
-	Recv() (*OpenData, error)
-	grpc.ServerStream
-}
-
-type remoteConnectionOpenRemoteServer struct {
-	grpc.ServerStream
-}
-
-func (x *remoteConnectionOpenRemoteServer) Send(m *OpenData) error {
-	return x.ServerStream.SendMsg(m)
-}
-
-func (x *remoteConnectionOpenRemoteServer) Recv() (*OpenData, error) {
-	m := new(OpenData)
-	if err := x.ServerStream.RecvMsg(m); err != nil {
-		return nil, err
-	}
-	return m, nil
-}
-
-func _RemoteConnection_ExposeLocalService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RemoteConnection_ExposeService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ExposeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RemoteConnectionServer).ExposeLocalService(ctx, in)
+		return srv.(RemoteConnectionServer).ExposeService(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shipyard.RemoteConnection/ExposeLocalService",
+		FullMethod: "/shipyard.RemoteConnection/ExposeService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RemoteConnectionServer).ExposeLocalService(ctx, req.(*ExposeRequest))
+		return srv.(RemoteConnectionServer).ExposeService(ctx, req.(*ExposeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RemoteConnection_DestroyLocalService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RemoteConnection_DestroyService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DestroyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RemoteConnectionServer).DestroyLocalService(ctx, in)
+		return srv.(RemoteConnectionServer).DestroyService(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shipyard.RemoteConnection/DestroyLocalService",
+		FullMethod: "/shipyard.RemoteConnection/DestroyService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RemoteConnectionServer).DestroyLocalService(ctx, req.(*DestroyRequest))
+		return srv.(RemoteConnectionServer).DestroyService(ctx, req.(*DestroyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RemoteConnection_CreateListener_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListenerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteConnectionServer).CreateListener(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/shipyard.RemoteConnection/CreateListener",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteConnectionServer).CreateListener(ctx, req.(*ListenerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RemoteConnection_DestroyListener_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListenerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteConnectionServer).DestroyListener(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/shipyard.RemoteConnection/DestroyListener",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteConnectionServer).DestroyListener(ctx, req.(*ListenerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -778,24 +878,26 @@ var _RemoteConnection_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RemoteConnectionServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "ExposeLocalService",
-			Handler:    _RemoteConnection_ExposeLocalService_Handler,
+			MethodName: "ExposeService",
+			Handler:    _RemoteConnection_ExposeService_Handler,
 		},
 		{
-			MethodName: "DestroyLocalService",
-			Handler:    _RemoteConnection_DestroyLocalService_Handler,
+			MethodName: "DestroyService",
+			Handler:    _RemoteConnection_DestroyService_Handler,
+		},
+		{
+			MethodName: "CreateListener",
+			Handler:    _RemoteConnection_CreateListener_Handler,
+		},
+		{
+			MethodName: "DestroyListener",
+			Handler:    _RemoteConnection_DestroyListener_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "OpenLocal",
-			Handler:       _RemoteConnection_OpenLocal_Handler,
-			ServerStreams: true,
-			ClientStreams: true,
-		},
-		{
-			StreamName:    "OpenRemote",
-			Handler:       _RemoteConnection_OpenRemote_Handler,
+			StreamName:    "OpenStream",
+			Handler:       _RemoteConnection_OpenStream_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},

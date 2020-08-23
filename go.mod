@@ -8,6 +8,7 @@ require (
 	github.com/google/uuid v1.1.1
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-hclog v0.12.1
+	github.com/nicholasjackson/env v0.6.0
 	github.com/prometheus/common v0.13.0
 	github.com/stretchr/testify v1.5.1
 	github.com/tj/assert v0.0.0-20190920132354-ee03d75cd160

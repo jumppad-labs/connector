@@ -16,5 +16,6 @@ func NewHealth(l hclog.Logger) *Health {
 }
 
 func (h *Health) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	h.logger.Info("Health handler called")
 	fmt.Fprint(rw, "OK")
 }

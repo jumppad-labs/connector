@@ -1,4 +1,4 @@
-package main
+package http
 
 import (
 	"net/http"
@@ -9,7 +9,7 @@ import (
 )
 
 func TestServerStartsCorrectly(t *testing.T) {
-	s := NewLocalServer(":8081", hclog.Default())
+	s := NewLocalServer(":8082", ":8081", hclog.Default())
 
 	t.Cleanup(func() {
 		s.Close()
