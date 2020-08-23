@@ -42,8 +42,11 @@ jobs:
       - name: Install Shipyard
         run: curl https://shipyard.run/install | bash
       
-      - name: Build a dev Docker image
-        run: make build_docker
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v1
+        with:
+          version: v0.139.0
+          args: release --rm-dist --snapshot
 
       - name: Run tests
         run: |
