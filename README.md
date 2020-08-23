@@ -34,10 +34,25 @@ curl localhost:9091/expose -d \
   }'
 ```
 
+## Running Connector
+Connector is a single binary and can be run with the following command.
+
+```shell
+./connector
+```
+
+To configure the runtime parameters the following environment variables can be used
+
+### Runtime Parameters
+**BIND_ADD_GRPC** Bind address for the gRPC API
+**BIND_ADD_HTTP** Bind address for the HTTP API
+**LOG_LEVEL** Verbosity for output logs, (info, debug, trace)
+
 ## Exposing remote service locally 
 It is also possible for Connector to expose TCP sockets running on a remote machine to the local host. This works in the same way as exposing remote services, the connection is always opened outward from the local machine to avoid NAT problems.
 
 ## Restful API
+Connector uses a gRPC API however for convenience there is also a partial RESTful API.
 
 ### POST /expose
 The expose endpoint allows you establish new connections between local and remote servers.
@@ -62,7 +77,7 @@ The port on the remote machine used to access the service.
 **remote_server_addr**  
 **type**: string
 
-The address of the remote server.
+The address of the remote servers gRPC API
 
 **service_addr**  
 **type**: string
@@ -72,7 +87,13 @@ FQDN of the exposed service, this address is used by the terminating Connector t
 **type**
 **type** string [local, remote]
 
+#### Returns
+String GUID for the created connection
+
 Type specifies the direction of the traffic. A value of `local`, exposes a service on the local machine to the remote connector. A value of `remote` exposes a service on the remote machine to the local connector.
+
+### GET /health
+Return the health of the Connector.
 
 ## Testing
 A simple test suite can be found in the folder `./test/simple`. These tests set up a pair of servers and test a local service exposed to a remote connector and a remote service exposed to a local connector. You can execute the tests using [Shipyard](https://shipyard.run):
