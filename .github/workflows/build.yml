@@ -16,7 +16,7 @@ jobs:
 
       - name: Unit Test
         run: |
-          go test -v -race -coverprofile=coverage.txt -covermode=atomic $(go list ./...)
+          go test -v -coverprofile=coverage.txt -covermode=atomic $(go list ./...)
 
       - name: Build
         run: |
@@ -26,3 +26,23 @@ jobs:
         uses: codecov/codecov-action@v1
         with:
           token: ${{ secrets.CODECOV_TOKEN }} #required
+      
+  functional_test:
+    name: Functional Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Setup Go version
+        uses: actions/setup-go@v2-beta
+        with:
+          go-version: '1.14.4' # The Go version to download (if necessary) and use.
+    
+      - name: Install Shipyard
+        run: curl https://shipyard.run/install | bash
+
+      - name: Run tests
+        run: |
+          cd test/simple
+          shipyard test

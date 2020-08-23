@@ -24,6 +24,71 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+type MessageType int32
+
+const (
+	MessageType_HELLO          MessageType = 0
+	MessageType_CLOSED         MessageType = 1
+	MessageType_DATA           MessageType = 2
+	MessageType_NEW_CONNECTION MessageType = 3
+	MessageType_WRITE_DONE     MessageType = 4
+	MessageType_READ_DONE      MessageType = 5
+	MessageType_ERROR          MessageType = 6
+)
+
+var MessageType_name = map[int32]string{
+	0: "HELLO",
+	1: "CLOSED",
+	2: "DATA",
+	3: "NEW_CONNECTION",
+	4: "WRITE_DONE",
+	5: "READ_DONE",
+	6: "ERROR",
+}
+
+var MessageType_value = map[string]int32{
+	"HELLO":          0,
+	"CLOSED":         1,
+	"DATA":           2,
+	"NEW_CONNECTION": 3,
+	"WRITE_DONE":     4,
+	"READ_DONE":      5,
+	"ERROR":          6,
+}
+
+func (x MessageType) String() string {
+	return proto.EnumName(MessageType_name, int32(x))
+}
+
+func (MessageType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{0}
+}
+
+type ServiceType int32
+
+const (
+	ServiceType_LOCAL  ServiceType = 0
+	ServiceType_REMOTE ServiceType = 1
+)
+
+var ServiceType_name = map[int32]string{
+	0: "LOCAL",
+	1: "REMOTE",
+}
+
+var ServiceType_value = map[string]int32{
+	"LOCAL":  0,
+	"REMOTE": 1,
+}
+
+func (x ServiceType) String() string {
+	return proto.EnumName(ServiceType_name, int32(x))
+}
+
+func (ServiceType) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{1}
+}
+
 type NullResponse struct {
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -56,12 +121,14 @@ func (m *NullResponse) XXX_DiscardUnknown() {
 var xxx_messageInfo_NullResponse proto.InternalMessageInfo
 
 type OpenData struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
-	Data                 []byte   `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	ServiceId            string      `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
+	ConnectionId         string      `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
+	Location             string      `protobuf:"bytes,3,opt,name=location,proto3" json:"location,omitempty"`
+	Type                 MessageType `protobuf:"varint,4,opt,name=type,proto3,enum=shipyard.MessageType" json:"type,omitempty"`
+	Data                 []byte      `protobuf:"bytes,5,opt,name=data,proto3" json:"data,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
 func (m *OpenData) Reset()         { *m = OpenData{} }
@@ -89,18 +156,32 @@ func (m *OpenData) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_OpenData proto.InternalMessageInfo
 
-func (m *OpenData) GetId() string {
+func (m *OpenData) GetServiceId() string {
 	if m != nil {
-		return m.Id
+		return m.ServiceId
 	}
 	return ""
 }
 
-func (m *OpenData) GetType() string {
+func (m *OpenData) GetConnectionId() string {
+	if m != nil {
+		return m.ConnectionId
+	}
+	return ""
+}
+
+func (m *OpenData) GetLocation() string {
+	if m != nil {
+		return m.Location
+	}
+	return ""
+}
+
+func (m *OpenData) GetType() MessageType {
 	if m != nil {
 		return m.Type
 	}
-	return ""
+	return MessageType_HELLO
 }
 
 func (m *OpenData) GetData() []byte {
@@ -110,71 +191,182 @@ func (m *OpenData) GetData() []byte {
 	return nil
 }
 
-type CreateRequest struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Name                 string   `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Port                 int32    `protobuf:"varint,3,opt,name=port,proto3" json:"port,omitempty"`
-	Matches              []*Match `protobuf:"bytes,4,rep,name=matches,proto3" json:"matches,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+type ExposeRequest struct {
+	Name                 string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	RemoteServerAddr     string      `protobuf:"bytes,2,opt,name=remoteServerAddr,proto3" json:"remoteServerAddr,omitempty"`
+	ServiceAddr          string      `protobuf:"bytes,3,opt,name=serviceAddr,proto3" json:"serviceAddr,omitempty"`
+	LocalPort            int32       `protobuf:"varint,4,opt,name=localPort,proto3" json:"localPort,omitempty"`
+	RemotePort           int32       `protobuf:"varint,5,opt,name=remotePort,proto3" json:"remotePort,omitempty"`
+	Type                 ServiceType `protobuf:"varint,6,opt,name=type,proto3,enum=shipyard.ServiceType" json:"type,omitempty"`
+	Matches              []*Match    `protobuf:"bytes,7,rep,name=matches,proto3" json:"matches,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
+	XXX_unrecognized     []byte      `json:"-"`
+	XXX_sizecache        int32       `json:"-"`
 }
 
-func (m *CreateRequest) Reset()         { *m = CreateRequest{} }
-func (m *CreateRequest) String() string { return proto.CompactTextString(m) }
-func (*CreateRequest) ProtoMessage()    {}
-func (*CreateRequest) Descriptor() ([]byte, []int) {
+func (m *ExposeRequest) Reset()         { *m = ExposeRequest{} }
+func (m *ExposeRequest) String() string { return proto.CompactTextString(m) }
+func (*ExposeRequest) ProtoMessage()    {}
+func (*ExposeRequest) Descriptor() ([]byte, []int) {
 	return fileDescriptor_ad098daeda4239f7, []int{2}
 }
 
-func (m *CreateRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CreateRequest.Unmarshal(m, b)
+func (m *ExposeRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExposeRequest.Unmarshal(m, b)
 }
-func (m *CreateRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CreateRequest.Marshal(b, m, deterministic)
+func (m *ExposeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExposeRequest.Marshal(b, m, deterministic)
 }
-func (m *CreateRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CreateRequest.Merge(m, src)
+func (m *ExposeRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExposeRequest.Merge(m, src)
 }
-func (m *CreateRequest) XXX_Size() int {
-	return xxx_messageInfo_CreateRequest.Size(m)
+func (m *ExposeRequest) XXX_Size() int {
+	return xxx_messageInfo_ExposeRequest.Size(m)
 }
-func (m *CreateRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CreateRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CreateRequest proto.InternalMessageInfo
-
-func (m *CreateRequest) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
+func (m *ExposeRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExposeRequest.DiscardUnknown(m)
 }
 
-func (m *CreateRequest) GetName() string {
+var xxx_messageInfo_ExposeRequest proto.InternalMessageInfo
+
+func (m *ExposeRequest) GetName() string {
 	if m != nil {
 		return m.Name
 	}
 	return ""
 }
 
-func (m *CreateRequest) GetPort() int32 {
+func (m *ExposeRequest) GetRemoteServerAddr() string {
 	if m != nil {
-		return m.Port
+		return m.RemoteServerAddr
+	}
+	return ""
+}
+
+func (m *ExposeRequest) GetServiceAddr() string {
+	if m != nil {
+		return m.ServiceAddr
+	}
+	return ""
+}
+
+func (m *ExposeRequest) GetLocalPort() int32 {
+	if m != nil {
+		return m.LocalPort
 	}
 	return 0
 }
 
-func (m *CreateRequest) GetMatches() []*Match {
+func (m *ExposeRequest) GetRemotePort() int32 {
+	if m != nil {
+		return m.RemotePort
+	}
+	return 0
+}
+
+func (m *ExposeRequest) GetType() ServiceType {
+	if m != nil {
+		return m.Type
+	}
+	return ServiceType_LOCAL
+}
+
+func (m *ExposeRequest) GetMatches() []*Match {
 	if m != nil {
 		return m.Matches
 	}
 	return nil
 }
 
+type ExposeResponse struct {
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExposeResponse) Reset()         { *m = ExposeResponse{} }
+func (m *ExposeResponse) String() string { return proto.CompactTextString(m) }
+func (*ExposeResponse) ProtoMessage()    {}
+func (*ExposeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{3}
+}
+
+func (m *ExposeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExposeResponse.Unmarshal(m, b)
+}
+func (m *ExposeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExposeResponse.Marshal(b, m, deterministic)
+}
+func (m *ExposeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExposeResponse.Merge(m, src)
+}
+func (m *ExposeResponse) XXX_Size() int {
+	return xxx_messageInfo_ExposeResponse.Size(m)
+}
+func (m *ExposeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExposeResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExposeResponse proto.InternalMessageInfo
+
+func (m *ExposeResponse) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type ListenerRequest struct {
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	LocalPort            int32    `protobuf:"varint,2,opt,name=localPort,proto3" json:"localPort,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListenerRequest) Reset()         { *m = ListenerRequest{} }
+func (m *ListenerRequest) String() string { return proto.CompactTextString(m) }
+func (*ListenerRequest) ProtoMessage()    {}
+func (*ListenerRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{4}
+}
+
+func (m *ListenerRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ListenerRequest.Unmarshal(m, b)
+}
+func (m *ListenerRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ListenerRequest.Marshal(b, m, deterministic)
+}
+func (m *ListenerRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListenerRequest.Merge(m, src)
+}
+func (m *ListenerRequest) XXX_Size() int {
+	return xxx_messageInfo_ListenerRequest.Size(m)
+}
+func (m *ListenerRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListenerRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListenerRequest proto.InternalMessageInfo
+
+func (m *ListenerRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *ListenerRequest) GetLocalPort() int32 {
+	if m != nil {
+		return m.LocalPort
+	}
+	return 0
+}
+
 type DestroyRequest struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	ServerAddr           string   `protobuf:"bytes,2,opt,name=serverAddr,proto3" json:"serverAddr,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -184,7 +376,7 @@ func (m *DestroyRequest) Reset()         { *m = DestroyRequest{} }
 func (m *DestroyRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyRequest) ProtoMessage()    {}
 func (*DestroyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{3}
+	return fileDescriptor_ad098daeda4239f7, []int{5}
 }
 
 func (m *DestroyRequest) XXX_Unmarshal(b []byte) error {
@@ -212,36 +404,12 @@ func (m *DestroyRequest) GetId() string {
 	return ""
 }
 
-type CreateResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+func (m *DestroyRequest) GetServerAddr() string {
+	if m != nil {
+		return m.ServerAddr
+	}
+	return ""
 }
-
-func (m *CreateResponse) Reset()         { *m = CreateResponse{} }
-func (m *CreateResponse) String() string { return proto.CompactTextString(m) }
-func (*CreateResponse) ProtoMessage()    {}
-func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{4}
-}
-
-func (m *CreateResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CreateResponse.Unmarshal(m, b)
-}
-func (m *CreateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CreateResponse.Marshal(b, m, deterministic)
-}
-func (m *CreateResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CreateResponse.Merge(m, src)
-}
-func (m *CreateResponse) XXX_Size() int {
-	return xxx_messageInfo_CreateResponse.Size(m)
-}
-func (m *CreateResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CreateResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CreateResponse proto.InternalMessageInfo
 
 type Match struct {
 	Http                 *Http    `protobuf:"bytes,1,opt,name=http,proto3" json:"http,omitempty"`
@@ -255,7 +423,7 @@ func (m *Match) Reset()         { *m = Match{} }
 func (m *Match) String() string { return proto.CompactTextString(m) }
 func (*Match) ProtoMessage()    {}
 func (*Match) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{5}
+	return fileDescriptor_ad098daeda4239f7, []int{6}
 }
 
 func (m *Match) XXX_Unmarshal(b []byte) error {
@@ -301,7 +469,7 @@ func (m *Http) Reset()         { *m = Http{} }
 func (m *Http) String() string { return proto.CompactTextString(m) }
 func (*Http) ProtoMessage()    {}
 func (*Http) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{6}
+	return fileDescriptor_ad098daeda4239f7, []int{7}
 }
 
 func (m *Http) XXX_Unmarshal(b []byte) error {
@@ -341,7 +509,7 @@ func (m *Header) Reset()         { *m = Header{} }
 func (m *Header) String() string { return proto.CompactTextString(m) }
 func (*Header) ProtoMessage()    {}
 func (*Header) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{7}
+	return fileDescriptor_ad098daeda4239f7, []int{8}
 }
 
 func (m *Header) XXX_Unmarshal(b []byte) error {
@@ -386,7 +554,7 @@ func (m *Grpc) Reset()         { *m = Grpc{} }
 func (m *Grpc) String() string { return proto.CompactTextString(m) }
 func (*Grpc) ProtoMessage()    {}
 func (*Grpc) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{8}
+	return fileDescriptor_ad098daeda4239f7, []int{9}
 }
 
 func (m *Grpc) XXX_Unmarshal(b []byte) error {
@@ -408,11 +576,14 @@ func (m *Grpc) XXX_DiscardUnknown() {
 var xxx_messageInfo_Grpc proto.InternalMessageInfo
 
 func init() {
+	proto.RegisterEnum("shipyard.MessageType", MessageType_name, MessageType_value)
+	proto.RegisterEnum("shipyard.ServiceType", ServiceType_name, ServiceType_value)
 	proto.RegisterType((*NullResponse)(nil), "shipyard.NullResponse")
 	proto.RegisterType((*OpenData)(nil), "shipyard.OpenData")
-	proto.RegisterType((*CreateRequest)(nil), "shipyard.CreateRequest")
+	proto.RegisterType((*ExposeRequest)(nil), "shipyard.ExposeRequest")
+	proto.RegisterType((*ExposeResponse)(nil), "shipyard.ExposeResponse")
+	proto.RegisterType((*ListenerRequest)(nil), "shipyard.ListenerRequest")
 	proto.RegisterType((*DestroyRequest)(nil), "shipyard.DestroyRequest")
-	proto.RegisterType((*CreateResponse)(nil), "shipyard.CreateResponse")
 	proto.RegisterType((*Match)(nil), "shipyard.Match")
 	proto.RegisterType((*Http)(nil), "shipyard.Http")
 	proto.RegisterType((*Header)(nil), "shipyard.Header")
@@ -424,30 +595,47 @@ func init() {
 }
 
 var fileDescriptor_ad098daeda4239f7 = []byte{
-	// 361 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0xc1, 0xae, 0xd3, 0x30,
-	0x10, 0x94, 0xfb, 0xd2, 0xb4, 0x6c, 0x4b, 0xa8, 0x2c, 0x04, 0x51, 0x4f, 0x91, 0x4f, 0x81, 0x43,
-	0x85, 0xc2, 0xb1, 0x37, 0x5a, 0x09, 0x2e, 0x50, 0xe4, 0x3f, 0x30, 0xc9, 0x8a, 0x44, 0x6a, 0x63,
-	0x63, 0x6f, 0x11, 0xfd, 0x3b, 0x3e, 0x0d, 0xd9, 0x69, 0x9a, 0x54, 0xf4, 0xdd, 0x36, 0x33, 0x93,
-	0xd9, 0xf5, 0xec, 0xc2, 0xd2, 0xa1, 0xfd, 0x8d, 0x76, 0x63, 0xac, 0x26, 0xcd, 0xe7, 0xae, 0x6e,
-	0xcc, 0x45, 0xd9, 0x4a, 0x24, 0xb0, 0xfc, 0x76, 0x3e, 0x1e, 0x25, 0x3a, 0xa3, 0x5b, 0x87, 0xe2,
-	0x13, 0xcc, 0x0f, 0x06, 0xdb, 0xbd, 0x22, 0xc5, 0x13, 0x98, 0x34, 0x55, 0xca, 0x32, 0x96, 0xbf,
-	0x90, 0x93, 0xa6, 0xe2, 0x1c, 0x22, 0xba, 0x18, 0x4c, 0x27, 0x01, 0x09, 0xb5, 0xc7, 0x2a, 0x45,
-	0x2a, 0x7d, 0xca, 0x58, 0xbe, 0x94, 0xa1, 0x16, 0x16, 0x5e, 0xee, 0x2c, 0x2a, 0x42, 0x89, 0xbf,
-	0xce, 0xe8, 0xe8, 0x91, 0x51, 0xab, 0x4e, 0x37, 0x23, 0x5f, 0x7b, 0xcc, 0x68, 0x4b, 0xc1, 0x68,
-	0x2a, 0x43, 0xcd, 0xdf, 0xc1, 0xec, 0xa4, 0xa8, 0xac, 0xd1, 0xa5, 0x51, 0xf6, 0x94, 0x2f, 0x8a,
-	0x57, 0x9b, 0x7e, 0xf0, 0xcd, 0x57, 0x4f, 0xc8, 0x9e, 0x17, 0x19, 0x24, 0x7b, 0x74, 0x64, 0xf5,
-	0xe5, 0x99, 0xa6, 0x62, 0x05, 0x49, 0x3f, 0xd5, 0xf5, 0xad, 0x07, 0x98, 0x06, 0x17, 0x2e, 0x20,
-	0xaa, 0x89, 0x4c, 0x10, 0x2f, 0x8a, 0x64, 0x68, 0xf2, 0x85, 0xc8, 0xc8, 0xc0, 0x79, 0xcd, 0x4f,
-	0xf9, 0x7d, 0x17, 0x66, 0xbe, 0xd3, 0x7c, 0xb6, 0xa6, 0x94, 0x81, 0x13, 0x05, 0x44, 0xfe, 0x0f,
-	0xfe, 0x1e, 0x66, 0x35, 0xaa, 0x0a, 0xad, 0x4b, 0x59, 0x98, 0x7b, 0x35, 0xb2, 0x0c, 0x84, 0xec,
-	0x05, 0xa2, 0x80, 0xb8, 0x83, 0x6e, 0xa9, 0xb0, 0x51, 0x2a, 0xaf, 0x61, 0x8a, 0x7f, 0x54, 0x49,
-	0xd7, 0xa8, 0xba, 0x0f, 0x11, 0x43, 0xe4, 0xbb, 0x16, 0x7f, 0x19, 0xac, 0x24, 0x9e, 0x34, 0xe1,
-	0x4e, 0xb7, 0x2d, 0x96, 0xd4, 0xe8, 0x96, 0x17, 0x10, 0xf9, 0x0d, 0x72, 0x3e, 0xf4, 0xec, 0x37,
-	0xba, 0x7e, 0x80, 0xe5, 0xec, 0x03, 0xe3, 0x5b, 0x88, 0xbb, 0x6c, 0xf8, 0xdb, 0x41, 0x71, 0xb7,
-	0xc3, 0x75, 0xfa, 0x3f, 0xd1, 0xc5, 0xc8, 0xb7, 0x30, 0xbb, 0x46, 0xcf, 0x47, 0xa2, 0xfb, 0x6d,
-	0xac, 0xdf, 0x0c, 0xcc, 0xf8, 0xde, 0x7e, 0xc4, 0xe1, 0x20, 0x3f, 0xfe, 0x0b, 0x00, 0x00, 0xff,
-	0xff, 0x97, 0x82, 0xb0, 0xb3, 0xa0, 0x02, 0x00, 0x00,
+	// 636 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xcb, 0x6e, 0x9b, 0x40,
+	0x14, 0x2d, 0x04, 0x1c, 0xfb, 0xda, 0x21, 0xe8, 0xaa, 0x0f, 0x6a, 0xb5, 0x91, 0x45, 0xbb, 0x70,
+	0xbc, 0x88, 0x2a, 0x77, 0xd3, 0x5d, 0xeb, 0x00, 0x6a, 0x2c, 0x39, 0x26, 0x1a, 0x5b, 0xca, 0xd2,
+	0xa2, 0x70, 0x15, 0x5b, 0xb2, 0x81, 0xc2, 0xa4, 0x8a, 0x3f, 0xa0, 0x1f, 0xd3, 0xaf, 0xea, 0xaf,
+	0x54, 0x0c, 0x60, 0xb0, 0x93, 0xac, 0xba, 0x63, 0xce, 0x39, 0x73, 0x5f, 0x9c, 0x3b, 0xd0, 0x49,
+	0x29, 0xf9, 0x45, 0xc9, 0x45, 0x9c, 0x44, 0x3c, 0xc2, 0x66, 0xba, 0x5c, 0xc5, 0x5b, 0x2f, 0x09,
+	0x4c, 0x0d, 0x3a, 0xd3, 0xfb, 0xf5, 0x9a, 0x51, 0x1a, 0x47, 0x61, 0x4a, 0xe6, 0x1f, 0x09, 0x9a,
+	0x6e, 0x4c, 0xa1, 0xed, 0x71, 0x0f, 0xdf, 0x03, 0x64, 0xd7, 0x56, 0x3e, 0x2d, 0x56, 0x81, 0x21,
+	0xf5, 0xa4, 0x7e, 0x8b, 0xb5, 0x0a, 0x64, 0x1c, 0xe0, 0x07, 0x38, 0xf1, 0xa3, 0x30, 0x24, 0x9f,
+	0xaf, 0xa2, 0x30, 0x53, 0xc8, 0x42, 0xd1, 0xa9, 0xc0, 0x71, 0x80, 0x5d, 0x68, 0xae, 0x23, 0xdf,
+	0xcb, 0x4e, 0xc6, 0x91, 0xe0, 0x77, 0x67, 0x3c, 0x07, 0x85, 0x6f, 0x63, 0x32, 0x94, 0x9e, 0xd4,
+	0xd7, 0x86, 0xaf, 0x2e, 0xca, 0xaa, 0x2e, 0xae, 0x29, 0x4d, 0xbd, 0x3b, 0x9a, 0x6f, 0x63, 0x62,
+	0x42, 0x82, 0x08, 0x4a, 0xe0, 0x71, 0xcf, 0x50, 0x7b, 0x52, 0xbf, 0xc3, 0xc4, 0xb7, 0xf9, 0x5b,
+	0x86, 0x13, 0xe7, 0x21, 0x8e, 0x52, 0x62, 0xf4, 0xf3, 0x9e, 0x52, 0x9e, 0xa9, 0x42, 0x6f, 0x43,
+	0x45, 0xa9, 0xe2, 0x1b, 0x07, 0xa0, 0x27, 0xb4, 0x89, 0x38, 0xcd, 0xc4, 0x04, 0x46, 0x41, 0x90,
+	0x14, 0x85, 0x3e, 0xc2, 0xb1, 0x07, 0xed, 0xa2, 0x3d, 0x21, 0xcb, 0xeb, 0xad, 0x43, 0xf8, 0x0e,
+	0x5a, 0x59, 0xf9, 0xeb, 0x9b, 0x28, 0xe1, 0xa2, 0x6e, 0x95, 0x55, 0x00, 0x9e, 0x01, 0xe4, 0x31,
+	0x05, 0xad, 0x0a, 0xba, 0x86, 0xec, 0x1a, 0x6e, 0x1c, 0x36, 0x3c, 0xcb, 0x53, 0xd4, 0x1a, 0x3e,
+	0x87, 0xe3, 0x8d, 0xc7, 0xfd, 0x25, 0xa5, 0xc6, 0x71, 0xef, 0xa8, 0xdf, 0x1e, 0x9e, 0xd6, 0xc6,
+	0x93, 0x11, 0xac, 0xe4, 0xcd, 0x1e, 0x68, 0xe5, 0x18, 0xf2, 0xbf, 0x88, 0x1a, 0xc8, 0xbb, 0x1f,
+	0x26, 0xaf, 0x02, 0xf3, 0x2b, 0x9c, 0x4e, 0x56, 0x29, 0xa7, 0x90, 0x92, 0x72, 0x54, 0x07, 0x92,
+	0xfd, 0xc6, 0xe4, 0x83, 0xc6, 0xcc, 0x6f, 0xa0, 0xd9, 0x94, 0xf2, 0x24, 0xda, 0x3e, 0x77, 0xff,
+	0x2c, 0xf7, 0xca, 0xde, 0x80, 0x6b, 0x88, 0xe9, 0x82, 0x2a, 0xca, 0x46, 0x13, 0x94, 0x25, 0xe7,
+	0xb1, 0xb8, 0xda, 0x1e, 0x6a, 0x55, 0x57, 0x57, 0x9c, 0xc7, 0x4c, 0x70, 0x99, 0xe6, 0x8e, 0xdd,
+	0x58, 0x22, 0xcc, 0x9e, 0xe6, 0x7b, 0x12, 0xfb, 0x4c, 0x70, 0xe6, 0x10, 0x94, 0xec, 0x06, 0x0e,
+	0xe0, 0x78, 0x49, 0x5e, 0x40, 0x49, 0x6a, 0x48, 0x62, 0x50, 0x7a, 0x2d, 0xa4, 0x20, 0x58, 0x29,
+	0x30, 0x87, 0xd0, 0xc8, 0xa1, 0x27, 0x9d, 0xf2, 0x12, 0x54, 0x7a, 0xf0, 0x7c, 0x5e, 0x54, 0x9f,
+	0x1f, 0xcc, 0x06, 0x28, 0x59, 0xd6, 0xc1, 0x1a, 0xda, 0x35, 0x5b, 0x62, 0x0b, 0xd4, 0x2b, 0x67,
+	0x32, 0x71, 0xf5, 0x17, 0x08, 0xd0, 0xb0, 0x26, 0xee, 0xcc, 0xb1, 0x75, 0x09, 0x9b, 0xa0, 0xd8,
+	0xa3, 0xf9, 0x48, 0x97, 0x11, 0x41, 0x9b, 0x3a, 0xb7, 0x0b, 0xcb, 0x9d, 0x4e, 0x1d, 0x6b, 0x3e,
+	0x76, 0xa7, 0xfa, 0x11, 0x6a, 0x00, 0xb7, 0x6c, 0x3c, 0x77, 0x16, 0xb6, 0x3b, 0x75, 0x74, 0x05,
+	0x4f, 0xa0, 0xc5, 0x9c, 0x91, 0x9d, 0x1f, 0xd5, 0x2c, 0xa6, 0xc3, 0x98, 0xcb, 0xf4, 0xc6, 0xe0,
+	0x23, 0xb4, 0x6b, 0x9e, 0xc8, 0x98, 0x89, 0x6b, 0x8d, 0x26, 0x79, 0x36, 0xe6, 0x5c, 0xbb, 0x73,
+	0x47, 0x97, 0x86, 0x7f, 0x65, 0xd0, 0x99, 0xb0, 0x97, 0xb5, 0xdb, 0x39, 0xfc, 0x02, 0x90, 0x6d,
+	0xf0, 0x8c, 0x27, 0xe4, 0x6d, 0x10, 0xab, 0x69, 0x94, 0x7b, 0xdd, 0x7d, 0x02, 0xeb, 0x4b, 0x9f,
+	0x24, 0xbc, 0x2c, 0xf7, 0xa9, 0x48, 0x8d, 0x6f, 0x2a, 0xe1, 0xde, 0xa2, 0x75, 0x8d, 0xc7, 0x44,
+	0x61, 0xbd, 0xcb, 0x9d, 0x53, 0xca, 0x20, 0x35, 0xed, 0xbe, 0x87, 0xba, 0xaf, 0x2b, 0xa6, 0xfe,
+	0x08, 0xa1, 0x05, 0x9a, 0x95, 0x90, 0xc7, 0xa9, 0x34, 0x2d, 0xbe, 0xad, 0x94, 0x07, 0x46, 0x7e,
+	0x36, 0x88, 0x0d, 0xa7, 0x45, 0xba, 0xff, 0x88, 0xf2, 0xa3, 0x21, 0x1e, 0xcc, 0xcf, 0xff, 0x02,
+	0x00, 0x00, 0xff, 0xff, 0xb7, 0x02, 0x15, 0x3c, 0x40, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -462,12 +650,16 @@ const _ = grpc.SupportPackageIsVersion6
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type RemoteConnectionClient interface {
-	// open a remote connection and proxy tcp over gRPC
-	Open(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error)
-	// create a new connection for a given service
-	Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error)
-	// close a new connection for a given service
-	Destroy(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	// Open a stream between two servers
+	OpenStream(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenStreamClient, error)
+	// Open a new TCP port for the local service on the server and start listening
+	ExposeService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error)
+	// Close the remote TCP port and remove all resources
+	DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	// Create a TCP socket and listen for traffic
+	CreateListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	// Close  a local TCP socket and stop listenng for traffic
+	DestroyListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error)
 }
 
 type remoteConnectionClient struct {
@@ -478,30 +670,30 @@ func NewRemoteConnectionClient(cc grpc.ClientConnInterface) RemoteConnectionClie
 	return &remoteConnectionClient{cc}
 }
 
-func (c *remoteConnectionClient) Open(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenClient, error) {
-	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[0], "/shipyard.RemoteConnection/Open", opts...)
+func (c *remoteConnectionClient) OpenStream(ctx context.Context, opts ...grpc.CallOption) (RemoteConnection_OpenStreamClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_RemoteConnection_serviceDesc.Streams[0], "/shipyard.RemoteConnection/OpenStream", opts...)
 	if err != nil {
 		return nil, err
 	}
-	x := &remoteConnectionOpenClient{stream}
+	x := &remoteConnectionOpenStreamClient{stream}
 	return x, nil
 }
 
-type RemoteConnection_OpenClient interface {
+type RemoteConnection_OpenStreamClient interface {
 	Send(*OpenData) error
 	Recv() (*OpenData, error)
 	grpc.ClientStream
 }
 
-type remoteConnectionOpenClient struct {
+type remoteConnectionOpenStreamClient struct {
 	grpc.ClientStream
 }
 
-func (x *remoteConnectionOpenClient) Send(m *OpenData) error {
+func (x *remoteConnectionOpenStreamClient) Send(m *OpenData) error {
 	return x.ClientStream.SendMsg(m)
 }
 
-func (x *remoteConnectionOpenClient) Recv() (*OpenData, error) {
+func (x *remoteConnectionOpenStreamClient) Recv() (*OpenData, error) {
 	m := new(OpenData)
 	if err := x.ClientStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -509,18 +701,36 @@ func (x *remoteConnectionOpenClient) Recv() (*OpenData, error) {
 	return m, nil
 }
 
-func (c *remoteConnectionClient) Create(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*CreateResponse, error) {
-	out := new(CreateResponse)
-	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/Create", in, out, opts...)
+func (c *remoteConnectionClient) ExposeService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error) {
+	out := new(ExposeResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/ExposeService", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *remoteConnectionClient) Destroy(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+func (c *remoteConnectionClient) DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error) {
 	out := new(NullResponse)
-	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/Destroy", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *remoteConnectionClient) CreateListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+	out := new(NullResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/CreateListener", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *remoteConnectionClient) DestroyListener(ctx context.Context, in *ListenerRequest, opts ...grpc.CallOption) (*NullResponse, error) {
+	out := new(NullResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyListener", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -529,51 +739,61 @@ func (c *remoteConnectionClient) Destroy(ctx context.Context, in *DestroyRequest
 
 // RemoteConnectionServer is the server API for RemoteConnection service.
 type RemoteConnectionServer interface {
-	// open a remote connection and proxy tcp over gRPC
-	Open(RemoteConnection_OpenServer) error
-	// create a new connection for a given service
-	Create(context.Context, *CreateRequest) (*CreateResponse, error)
-	// close a new connection for a given service
-	Destroy(context.Context, *DestroyRequest) (*NullResponse, error)
+	// Open a stream between two servers
+	OpenStream(RemoteConnection_OpenStreamServer) error
+	// Open a new TCP port for the local service on the server and start listening
+	ExposeService(context.Context, *ExposeRequest) (*ExposeResponse, error)
+	// Close the remote TCP port and remove all resources
+	DestroyService(context.Context, *DestroyRequest) (*NullResponse, error)
+	// Create a TCP socket and listen for traffic
+	CreateListener(context.Context, *ListenerRequest) (*NullResponse, error)
+	// Close  a local TCP socket and stop listenng for traffic
+	DestroyListener(context.Context, *ListenerRequest) (*NullResponse, error)
 }
 
 // UnimplementedRemoteConnectionServer can be embedded to have forward compatible implementations.
 type UnimplementedRemoteConnectionServer struct {
 }
 
-func (*UnimplementedRemoteConnectionServer) Open(srv RemoteConnection_OpenServer) error {
-	return status.Errorf(codes.Unimplemented, "method Open not implemented")
+func (*UnimplementedRemoteConnectionServer) OpenStream(srv RemoteConnection_OpenStreamServer) error {
+	return status.Errorf(codes.Unimplemented, "method OpenStream not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) Create(ctx context.Context, req *CreateRequest) (*CreateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+func (*UnimplementedRemoteConnectionServer) ExposeService(ctx context.Context, req *ExposeRequest) (*ExposeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ExposeService not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) Destroy(ctx context.Context, req *DestroyRequest) (*NullResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Destroy not implemented")
+func (*UnimplementedRemoteConnectionServer) DestroyService(ctx context.Context, req *DestroyRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DestroyService not implemented")
+}
+func (*UnimplementedRemoteConnectionServer) CreateListener(ctx context.Context, req *ListenerRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateListener not implemented")
+}
+func (*UnimplementedRemoteConnectionServer) DestroyListener(ctx context.Context, req *ListenerRequest) (*NullResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DestroyListener not implemented")
 }
 
 func RegisterRemoteConnectionServer(s *grpc.Server, srv RemoteConnectionServer) {
 	s.RegisterService(&_RemoteConnection_serviceDesc, srv)
 }
 
-func _RemoteConnection_Open_Handler(srv interface{}, stream grpc.ServerStream) error {
-	return srv.(RemoteConnectionServer).Open(&remoteConnectionOpenServer{stream})
+func _RemoteConnection_OpenStream_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(RemoteConnectionServer).OpenStream(&remoteConnectionOpenStreamServer{stream})
 }
 
-type RemoteConnection_OpenServer interface {
+type RemoteConnection_OpenStreamServer interface {
 	Send(*OpenData) error
 	Recv() (*OpenData, error)
 	grpc.ServerStream
 }
 
-type remoteConnectionOpenServer struct {
+type remoteConnectionOpenStreamServer struct {
 	grpc.ServerStream
 }
 
-func (x *remoteConnectionOpenServer) Send(m *OpenData) error {
+func (x *remoteConnectionOpenStreamServer) Send(m *OpenData) error {
 	return x.ServerStream.SendMsg(m)
 }
 
-func (x *remoteConnectionOpenServer) Recv() (*OpenData, error) {
+func (x *remoteConnectionOpenStreamServer) Recv() (*OpenData, error) {
 	m := new(OpenData)
 	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
@@ -581,38 +801,74 @@ func (x *remoteConnectionOpenServer) Recv() (*OpenData, error) {
 	return m, nil
 }
 
-func _RemoteConnection_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateRequest)
+func _RemoteConnection_ExposeService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ExposeRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RemoteConnectionServer).Create(ctx, in)
+		return srv.(RemoteConnectionServer).ExposeService(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shipyard.RemoteConnection/Create",
+		FullMethod: "/shipyard.RemoteConnection/ExposeService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RemoteConnectionServer).Create(ctx, req.(*CreateRequest))
+		return srv.(RemoteConnectionServer).ExposeService(ctx, req.(*ExposeRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _RemoteConnection_Destroy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _RemoteConnection_DestroyService_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(DestroyRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(RemoteConnectionServer).Destroy(ctx, in)
+		return srv.(RemoteConnectionServer).DestroyService(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/shipyard.RemoteConnection/Destroy",
+		FullMethod: "/shipyard.RemoteConnection/DestroyService",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(RemoteConnectionServer).Destroy(ctx, req.(*DestroyRequest))
+		return srv.(RemoteConnectionServer).DestroyService(ctx, req.(*DestroyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RemoteConnection_CreateListener_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListenerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteConnectionServer).CreateListener(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/shipyard.RemoteConnection/CreateListener",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteConnectionServer).CreateListener(ctx, req.(*ListenerRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RemoteConnection_DestroyListener_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListenerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteConnectionServer).DestroyListener(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/shipyard.RemoteConnection/DestroyListener",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteConnectionServer).DestroyListener(ctx, req.(*ListenerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -622,18 +878,26 @@ var _RemoteConnection_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*RemoteConnectionServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Create",
-			Handler:    _RemoteConnection_Create_Handler,
+			MethodName: "ExposeService",
+			Handler:    _RemoteConnection_ExposeService_Handler,
 		},
 		{
-			MethodName: "Destroy",
-			Handler:    _RemoteConnection_Destroy_Handler,
+			MethodName: "DestroyService",
+			Handler:    _RemoteConnection_DestroyService_Handler,
+		},
+		{
+			MethodName: "CreateListener",
+			Handler:    _RemoteConnection_CreateListener_Handler,
+		},
+		{
+			MethodName: "DestroyListener",
+			Handler:    _RemoteConnection_DestroyListener_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
 		{
-			StreamName:    "Open",
-			Handler:       _RemoteConnection_Open_Handler,
+			StreamName:    "OpenStream",
+			Handler:       _RemoteConnection_OpenStream_Handler,
 			ServerStreams: true,
 			ClientStreams: true,
 		},
