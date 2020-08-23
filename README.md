@@ -44,9 +44,9 @@ Connector is a single binary and can be run with the following command.
 To configure the runtime parameters the following environment variables can be used
 
 ### Runtime Parameters
-**BIND_ADD_GRPC** Bind address for the gRPC API
-**BIND_ADD_HTTP** Bind address for the HTTP API
-**LOG_LEVEL** Verbosity for output logs, (info, debug, trace)
+**BIND_ADD_GRPC** Bind address for the gRPC API  
+**BIND_ADD_HTTP** Bind address for the HTTP API  
+**LOG_LEVEL** Verbosity for output logs, (info, debug, trace)  
 
 ## Exposing remote service locally 
 It is also possible for Connector to expose TCP sockets running on a remote machine to the local host. This works in the same way as exposing remote services, the connection is always opened outward from the local machine to avoid NAT problems.
