@@ -41,6 +41,9 @@ jobs:
     
       - name: Install Shipyard
         run: curl https://shipyard.run/install | bash
+      
+      - name: Build a dev Docker image
+        run: make build_docker
 
       - name: Run tests
         run: |
