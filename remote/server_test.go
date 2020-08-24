@@ -2,13 +2,10 @@ package remote
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -38,7 +35,7 @@ func createServer(t *testing.T, addr, name string) {
 	})
 }
 
-func startLocalServer(t *testing.T) (int, *string) {
+func startLocalServer(t *testing.T) (string, *string) {
 	bodyData := ""
 
 	l := hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: "http_server"})
@@ -54,12 +51,10 @@ func startLocalServer(t *testing.T) (int, *string) {
 		ts.Close()
 	})
 
-	port, _ := strconv.ParseInt(strings.Split(ts.Listener.Addr().String(), ":")[1], 10, 64)
-
-	return int(port), &bodyData
+	return ts.Listener.Addr().String(), &bodyData
 }
 
-func setupServers(t *testing.T) (int, *string) {
+func setupServers(t *testing.T) (string, *string) {
 	// local server
 	createServer(t, ":1234", "server_local")
 	createServer(t, ":1235", "server_remote")
@@ -75,9 +70,9 @@ func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
 	return shipyard.NewRemoteConnectionClient(conn)
 }
 
-func setupTests(t *testing.T) (shipyard.RemoteConnectionClient, int, *string) {
-	tsPort, tsData := setupServers(t)
-	return createClient(t, "localhost:1234"), tsPort, tsData
+func setupTests(t *testing.T) (shipyard.RemoteConnectionClient, string, *string) {
+	tsAddr, tsData := setupServers(t)
+	return createClient(t, "localhost:1234"), tsAddr, tsData
 }
 
 func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
@@ -86,8 +81,8 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
 		Name:             "Test Service",
 		RemoteServerAddr: "localhost:1235",
-		LocalPort:        19000,
-		RemotePort:       19001,
+		SourcePort:       19000,
+		DestinationAddr:  "localhost:19001",
 		Type:             shipyard.ServiceType_REMOTE,
 	})
 
@@ -105,8 +100,8 @@ func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
 		Name:             "Test Service",
 		RemoteServerAddr: "localhost:1235",
-		LocalPort:        19000,
-		RemotePort:       19001,
+		SourcePort:       19001,
+		DestinationAddr:  "localhost:19000",
 		Type:             shipyard.ServiceType_LOCAL,
 	})
 
@@ -132,9 +127,8 @@ func TestMessageToRemoteEndpointCallsLocalService(t *testing.T) {
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
 		Name:             "Test Service",
 		RemoteServerAddr: "localhost:1235",
-		ServiceAddr:      fmt.Sprintf("localhost:%d", tsAddr),
-		LocalPort:        int32(tsAddr),
-		RemotePort:       19001,
+		DestinationAddr:  tsAddr,
+		SourcePort:       19001,
 		Type:             shipyard.ServiceType_LOCAL,
 	})
 
@@ -160,9 +154,8 @@ func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
 		Name:             "Test Service",
 		RemoteServerAddr: "localhost:1235",
-		ServiceAddr:      fmt.Sprintf("localhost:%d", tsAddr),
-		LocalPort:        19001,
-		RemotePort:       int32(tsAddr),
+		DestinationAddr:  tsAddr,
+		SourcePort:       19001,
 		Type:             shipyard.ServiceType_REMOTE,
 	})
 

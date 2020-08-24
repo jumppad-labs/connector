@@ -7,3 +7,6 @@ proto:
 
 build_docker:
 	goreleaser release --rm-dist --snapshot
+
+build_and_test: build_docker
+	cd test/simple && shipyard test

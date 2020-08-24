@@ -30,13 +30,6 @@ func (t *testClient) ExposeService(ctx context.Context, in *shipyard.ExposeReque
 func (t *testClient) DestroyService(ctx context.Context, in *shipyard.DestroyRequest, opts ...grpc.CallOption) (*shipyard.NullResponse, error) {
 	return nil, nil
 }
-func (t *testClient) CreateListener(ctx context.Context, in *shipyard.ListenerRequest, opts ...grpc.CallOption) (*shipyard.NullResponse, error) {
-	return nil, nil
-}
-
-func (t *testClient) DestroyListener(ctx context.Context, in *shipyard.ListenerRequest, opts ...grpc.CallOption) (*shipyard.NullResponse, error) {
-	return nil, nil
-}
 
 func TestNoBodyBadReqest(t *testing.T) {
 	h := NewExpose(&testClient{}, hclog.Default())

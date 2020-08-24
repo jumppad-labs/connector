@@ -17,10 +17,9 @@ Scenario: Expose Local Service to Remote Server
     curl localhost:9091/expose -d \
       '{
         "name":"test", 
-        "local_port": 9094, 
-        "remote_port": 13000, 
+        "source_port": 13000, 
         "remote_server_addr": "remote-connector.container.shipyard.run:9092", 
-        "service_addr": "local-service.container.shipyard.run:9094",
+        "destination_addr": "local-service.container.shipyard.run:9094",
         "type": "local"
       }'
     ```
@@ -41,10 +40,9 @@ Scenario: Expose Remote Service to Localhost
     curl localhost:9091/expose -d \
       '{
         "name":"test", 
-        "local_port": 12000, 
-        "remote_port": 9095, 
+        "source_port": 12000, 
         "remote_server_addr": "remote-connector.container.shipyard.run:9092", 
-        "service_addr": "remote-service.container.shipyard.run:9095",
+        "destination_addr": "remote-service.container.shipyard.run:9095",
         "type": "remote"
       }'
     ```
