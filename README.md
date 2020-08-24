@@ -26,10 +26,9 @@ To expose the local dev service a POST request would be made to the local connec
 curl localhost:9091/expose -d \
   '{
     "name":"devservice", 
-    "local_port": 9090, 
-    "remote_port": 13000, 
+    "source_port": 9090, 
     "remote_server_addr": "82.42.12.21:9092", 
-    "service_addr": "localhost:9090",
+    "destination_addr": "localhost:9090",
     "type": "local"
   }'
 ```
@@ -64,22 +63,17 @@ The expose endpoint allows you establish new connections between local and remot
 
 The name parameter is a human readable name for the exposed service.
 
-**local_port**  
+**source_port**  
 **type**: int
 
-The port on the local machine used to access the service.
-
-**remote_port**  
-**type**: int
-
-The port on the remote machine used to access the service.
+The port where the service will be accessible. If the service type is "local", this port will be a listener on the remote connector as it is exposing a local service. If the service type is "remote", this port will be a listener on the local connector as it is exposing a remote service.
 
 **remote_server_addr**  
 **type**: string
 
-The address of the remote servers gRPC API
+The address of the remote connectors gRPC API
 
-**service_addr**  
+**destination_addr**  
 **type**: string
 
 FQDN of the exposed service, this address is used by the terminating Connector to send the traffic to the destination. E.g. localhost or Kubernetes service name.
