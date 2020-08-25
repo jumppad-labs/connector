@@ -130,6 +130,10 @@ func (r *grpcConn) Send(data *shipyard.OpenData) {
 }
 
 func (r *grpcConn) Recv() (*shipyard.OpenData, error) {
+	if r == nil {
+		return nil, nil
+	}
+
 	switch c := r.conn.(type) {
 	case shipyard.RemoteConnection_OpenStreamClient:
 		return c.Recv()
@@ -141,9 +145,11 @@ func (r *grpcConn) Recv() (*shipyard.OpenData, error) {
 }
 
 func (r *grpcConn) Close() {
-	switch c := r.conn.(type) {
-	case shipyard.RemoteConnection_OpenStreamClient:
-		c.CloseSend()
+	if r != nil {
+		switch c := r.conn.(type) {
+		case shipyard.RemoteConnection_OpenStreamClient:
+			c.CloseSend()
+		}
 	}
 }
 
@@ -151,11 +157,18 @@ type service struct {
 	exposeRequest  *shipyard.ExposeRequest
 	tcpListener    net.Listener
 	tcpConnections map[string]net.Conn
+	status         kStatus
 }
 
 func newService() *service {
 	return &service{tcpConnections: map[string]net.Conn{}}
 }
+
+type kStatus string
+
+const kServicePending kStatus = "Pending"
+const kServiceCreated kStatus = "Created"
+const kServiceError kStatus = "Error"
 
 func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) error {
 	s.log.Info("Received new stream connection from client")
@@ -208,6 +221,7 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 
 			// set the remainder of the service info
 			streamInfo.services[msg.ServiceId].exposeRequest = m.Expose
+			streamInfo.services[msg.ServiceId].status = kServiceCreated
 
 		case *shipyard.OpenData_Data:
 			s.log.Trace("Message detail", "msg", m.Data.Data)
@@ -285,6 +299,7 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 
 	svc := newService()
 	svc.exposeRequest = r
+	svc.status = kServicePending
 
 	// find a remote connection
 	si, ok := s.streams.findByRemoteAddr(r.RemoteConnectorAddr)
@@ -300,7 +315,7 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	si.services[id] = svc
 
 	// establish a connection to the remote endpoint and setup listeners
-	s.handleReconnection(si)
+	go s.handleReconnection(si)
 
 	return &shipyard.ExposeResponse{Id: id}, nil
 }
@@ -321,22 +336,6 @@ func (s *Server) Shutdown() {
 	}
 }
 
-func (s *Server) teardownConnection(conn *streamInfo) {
-	for _, s := range conn.services {
-		// close any open connections
-		for id, c := range s.tcpConnections {
-			c.Close()
-			delete(s.tcpConnections, id)
-		}
-
-		// close the listener
-		if s.tcpListener != nil {
-			s.tcpListener.Close()
-			s.tcpListener = nil
-		}
-	}
-}
-
 var connectionBackoff = 10 * time.Second
 
 func (s *Server) handleReconnection(conn *streamInfo) error {
@@ -354,21 +353,24 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 	}()
 
 	for {
-		// connect to the service
-		gc, err := s.openRemoteConnection(conn.addr)
-		if err != nil {
-			s.log.Error("Unable to open remote connection", "error", err)
+		// if we do not have a connection create one
+		if conn.grpcConn == nil {
+			// connect to the service
+			gc, err := s.openRemoteConnection(conn.addr)
+			if err != nil {
+				s.log.Error("Unable to open remote connection", "error", err)
 
-			// back off and try again
-			time.Sleep(connectionBackoff)
-			continue
+				// back off and try again
+				time.Sleep(connectionBackoff)
+				continue
+			}
+
+			// set the connection
+			conn.grpcConn = gc
+
+			// handle messages for this stream
+			s.handleRemoteConnection(conn)
 		}
-
-		// set the connection
-		conn.grpcConn = gc
-
-		// handle messages for this stream
-		s.handleRemoteConnection(conn)
 
 		// loop all services and try to reconfigure
 		for id, svc := range conn.services {
@@ -387,10 +389,12 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			}
 
 			// send the expose message to the remote so it can open
+			s.log.Debug("Sending expose message to remote component", "addr", svc.exposeRequest.RemoteConnectorAddr)
 			req := &shipyard.OpenData{ServiceId: id}
 			req.Message = &shipyard.OpenData_Expose{Expose: svc.exposeRequest}
 
 			conn.grpcConn.Send(req)
+			svc.status = kServiceCreated
 		}
 
 		break
@@ -481,6 +485,27 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 			}
 		}
 	}(si)
+}
+
+func (s *Server) teardownConnection(conn *streamInfo) {
+	for _, s := range conn.services {
+		// close any open connections
+		for id, c := range s.tcpConnections {
+			c.Close()
+			delete(s.tcpConnections, id)
+		}
+
+		// close the listener
+		if s.tcpListener != nil {
+			s.tcpListener.Close()
+			s.tcpListener = nil
+		}
+
+		s.status = kServicePending
+	}
+
+	conn.grpcConn = nil
+
 }
 
 // get a gRPC client for the given address

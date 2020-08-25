@@ -30,7 +30,6 @@ func createServer(t *testing.T, addr, name string) {
 
 	t.Cleanup(func() {
 		s.Shutdown()
-		grpcServer.Stop()
 		lis.Close()
 	})
 }
@@ -88,6 +87,8 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
 
 	// check the listener exists
 	_, err = net.Dial("tcp", "localhost:19000")
