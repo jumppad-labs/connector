@@ -18,7 +18,7 @@ Scenario: Expose Local Service to Remote Server
       '{
         "name":"test", 
         "source_port": 13000, 
-        "remote_server_addr": "remote-connector.container.shipyard.run:9092", 
+        "remote_connector_addr": "remote-connector.container.shipyard.run:9092", 
         "destination_addr": "local-service.container.shipyard.run:9094",
         "type": "local"
       }'
@@ -41,7 +41,7 @@ Scenario: Expose Remote Service to Localhost
       '{
         "name":"test", 
         "source_port": 12000, 
-        "remote_server_addr": "remote-connector.container.shipyard.run:9092", 
+        "remote_connector_addr": "remote-connector.container.shipyard.run:9092", 
         "destination_addr": "remote-service.container.shipyard.run:9095",
         "type": "remote"
       }'
