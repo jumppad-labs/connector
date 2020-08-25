@@ -82,7 +82,7 @@ message Closed {}
 // ExposeRequests will be replayed when a connection is re-opened
 message ExposeRequest {
   string name = 1; // name of the service
-  string remoteServerAddr = 2; // address of the remote component for the service
+  string remoteConnectorAddr = 2; // address of the remote component for the service
   string destinationAddr = 3; // address of the service being exposed
   int32 sourcePort = 4; // local port to expose on
   ServiceType type = 6; // is the service running on this machine or the remote machine

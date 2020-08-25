@@ -284,16 +284,16 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	svc.exposeRequest = r
 
 	// find a remote connection
-	si, ok := s.streams.findByRemoteAddr(r.RemoteServerAddr)
+	si, ok := s.streams.findByRemoteAddr(r.RemoteConnectorAddr)
 	if !ok {
 		// remote connection does not exist, try to open
-		gc, err := s.openRemoteConnection(r.RemoteServerAddr)
+		gc, err := s.openRemoteConnection(r.RemoteConnectorAddr)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 
 		si = newStreamInfo()
-		si.addr = r.RemoteServerAddr
+		si.addr = r.RemoteConnectorAddr
 		si.grpcConn = gc
 
 		// add the new connection to the collection

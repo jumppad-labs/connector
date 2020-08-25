@@ -27,7 +27,7 @@ curl localhost:9091/expose -d \
   '{
     "name":"devservice", 
     "source_port": 9090, 
-    "remote_server_addr": "82.42.12.21:9092", 
+    "remote_connector_addr": "82.42.12.21:9092", 
     "destination_addr": "localhost:9090",
     "type": "local"
   }'
@@ -68,7 +68,7 @@ The name parameter is a human readable name for the exposed service.
 
 The port where the service will be accessible. If the service type is "local", this port will be a listener on the remote connector as it is exposing a local service. If the service type is "remote", this port will be a listener on the local connector as it is exposing a remote service.
 
-**remote_server_addr**  
+**remote_connector_addr**  
 **type**: string
 
 The address of the remote connectors gRPC API

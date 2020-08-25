@@ -79,11 +79,11 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	c, _, _ := setupTests(t)
 
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:             "Test Service",
-		RemoteServerAddr: "localhost:1235",
-		SourcePort:       19000,
-		DestinationAddr:  "localhost:19001",
-		Type:             shipyard.ServiceType_REMOTE,
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		SourcePort:          19000,
+		DestinationAddr:     "localhost:19001",
+		Type:                shipyard.ServiceType_REMOTE,
 	})
 
 	require.NoError(t, err)
@@ -98,15 +98,17 @@ func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 	c, _, _ := setupTests(t)
 
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:             "Test Service",
-		RemoteServerAddr: "localhost:1235",
-		SourcePort:       19001,
-		DestinationAddr:  "localhost:19000",
-		Type:             shipyard.ServiceType_LOCAL,
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		SourcePort:          19001,
+		DestinationAddr:     "localhost:19000",
+		Type:                shipyard.ServiceType_LOCAL,
 	})
 
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond)
 
 	// check the listener exists
 	_, err = net.Dial("tcp", "localhost:19001")
@@ -125,11 +127,11 @@ func TestMessageToRemoteEndpointCallsLocalService(t *testing.T) {
 	c, tsAddr, _ := setupTests(t)
 
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:             "Test Service",
-		RemoteServerAddr: "localhost:1235",
-		DestinationAddr:  tsAddr,
-		SourcePort:       19001,
-		Type:             shipyard.ServiceType_LOCAL,
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		DestinationAddr:     tsAddr,
+		SourcePort:          19001,
+		Type:                shipyard.ServiceType_LOCAL,
 	})
 
 	require.NoError(t, err)
@@ -152,11 +154,11 @@ func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {
 	c, tsAddr, _ := setupTests(t)
 
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:             "Test Service",
-		RemoteServerAddr: "localhost:1235",
-		DestinationAddr:  tsAddr,
-		SourcePort:       19001,
-		Type:             shipyard.ServiceType_REMOTE,
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		DestinationAddr:     tsAddr,
+		SourcePort:          19001,
+		Type:                shipyard.ServiceType_REMOTE,
 	})
 
 	require.NoError(t, err)
