@@ -61,6 +61,9 @@ func (l *LocalServer) createHandlers() *mux.Router {
 	eh := handlers.NewExpose(cli, l.logger.Named("expose_handler"))
 	r.Handle("/expose", eh).Methods(gohttp.MethodPost)
 
+	dh := handlers.NewRemove(cli, l.logger.Named("remove_handler"))
+	r.Handle("/expose/{id}", dh).Methods(gohttp.MethodDelete)
+
 	lh := handlers.NewList(cli, l.logger.Named("list_handler"))
 	r.Handle("/list", lh).Methods(gohttp.MethodGet)
 
