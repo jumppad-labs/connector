@@ -95,7 +95,55 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		SourcePort:          19000,
+		DestinationAddr:     "localhost:19001",
+		Type:                shipyard.ServiceType_REMOTE,
+	})
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.NoError(t, err)
+
+	// remove the listener
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener is not accessible
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.Error(t, err)
+}
+
 func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Name:                "Test Service",
+		RemoteConnectorAddr: "localhost:1235",
+		SourcePort:          19001,
+		DestinationAddr:     "localhost:19000",
+		Type:                shipyard.ServiceType_LOCAL,
+	})
+	time.Sleep(100 * time.Millisecond)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19001")
+	require.NoError(t, err)
+}
+
+func TestDestroyLocalServiceRemovesRemoteListener(t *testing.T) {
 	c, _, _ := setupTests(t)
 
 	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
@@ -114,6 +162,14 @@ func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 	// check the listener exists
 	_, err = net.Dial("tcp", "localhost:19001")
 	require.NoError(t, err)
+
+	// remove the listener
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener is not accessible
+	_, err = net.Dial("tcp", "localhost:19001")
+	require.Error(t, err)
 }
 
 func TestExposeLocalServiceCreatesRemoteConnection(t *testing.T) {

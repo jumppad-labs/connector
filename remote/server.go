@@ -223,6 +223,19 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 			streamInfo.services[msg.ServiceId].exposeRequest = m.Expose
 			streamInfo.services[msg.ServiceId].status = kServiceCreated
 
+		case *shipyard.OpenData_Destroy:
+			s.log.Info("Destroy service", "service_id", msg.ServiceId)
+
+			// Does this already exist? If so it will be a repeat send so ignore
+			si, ok := streamInfo.services[msg.ServiceId]
+			if !ok {
+				continue
+			}
+
+			s.teardownService(si)
+
+			delete(streamInfo.services, msg.ServiceId)
+
 		case *shipyard.OpenData_Data:
 			s.log.Trace("Message detail", "msg", m.Data.Data)
 
@@ -320,8 +333,28 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	return &shipyard.ExposeResponse{Id: id}, nil
 }
 
-func (s *Server) DestroyService(context.Context, *shipyard.DestroyRequest) (*shipyard.NullResponse, error) {
-	return nil, nil
+func (s *Server) DestroyService(ctx context.Context, dr *shipyard.DestroyRequest) (*shipyard.NullResponse, error) {
+	s.log.Info("Destroy service", "id", dr.Id)
+
+	// find the remoteConnection for the service
+	si, ok := s.streams.findByServiceID(dr.Id)
+	if !ok {
+		s.log.Error("Connection does not exist", "id", dr.Id)
+		return nil, status.Errorf(codes.NotFound, "Service with ID: %s, does not exist", dr.Id)
+	}
+
+	svc, _ := si.services[dr.Id]
+	s.teardownService(svc)
+
+	// send a message to the remote end that the service has been removed
+	if si.grpcConn != nil {
+		si.grpcConn.Send(&shipyard.OpenData{ServiceId: dr.Id, Message: &shipyard.OpenData_Destroy{Destroy: &shipyard.DestroyRequest{Id: dr.Id}}})
+	}
+
+	// delete the service
+	delete(si.services, dr.Id)
+
+	return &shipyard.NullResponse{}, nil
 }
 
 // Shutdown the server, closing all connections and listeners
@@ -488,24 +521,26 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 }
 
 func (s *Server) teardownConnection(conn *streamInfo) {
-	for _, s := range conn.services {
+	for _, svc := range conn.services {
 		// close any open connections
-		for id, c := range s.tcpConnections {
-			c.Close()
-			delete(s.tcpConnections, id)
-		}
-
-		// close the listener
-		if s.tcpListener != nil {
-			s.tcpListener.Close()
-			s.tcpListener = nil
-		}
-
-		s.status = kServicePending
+		s.teardownService(svc)
+		svc.status = kServicePending
 	}
 
 	conn.grpcConn = nil
+}
 
+func (s *Server) teardownService(svc *service) {
+	for id, c := range svc.tcpConnections {
+		c.Close()
+		delete(svc.tcpConnections, id)
+	}
+
+	// close the listener
+	if svc.tcpListener != nil {
+		svc.tcpListener.Close()
+		svc.tcpListener = nil
+	}
 }
 
 // get a gRPC client for the given address

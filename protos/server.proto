@@ -51,11 +51,12 @@ message OpenData {
   oneof message {
     Data data = 3;
     ExposeRequest expose = 4;
-    NewConnection new_connection = 5;
-    WriteDone write_done = 6;
-    ReadDone read_done = 7;
-    Closed closed = 8;
-    google.rpc.Status error = 9;
+    DestroyRequest destroy = 5;
+    NewConnection new_connection = 6;
+    WriteDone write_done = 7;
+    ReadDone read_done = 8;
+    Closed closed = 9;
+    google.rpc.Status error = 10;
   }
 }
 
