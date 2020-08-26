@@ -86,8 +86,38 @@ String GUID for the created connection
 
 Type specifies the direction of the traffic. A value of `local`, exposes a service on the local machine to the remote connector. A value of `remote` exposes a service on the remote machine to the local connector.
 
+### DELETE /expose/{id}
+
+Delete the exposed service with the given id
+
 ### GET /health
 Return the health of the Connector.
+
+### GET /list
+Return a list of configured services
+
+```
+[
+  {
+    "id": "",
+    "name": "test",
+    "source_port": 12000,
+    "remote_connector_addr": "remote-connector.container.shipyard.run:9092",
+    "destination_addr": "remote-service.container.shipyard.run:9095",
+    "type": "REMOTE",
+    "status": "COMPLETE"
+  },
+  {
+    "id": "",
+    "name": "test1",
+    "source_port": 13000,
+    "remote_connector_addr": "remote-connector.container.shipyard.run:9092",
+    "destination_addr": "local-service.container.shipyard.run:9094",
+    "type": "LOCAL",
+    "status": "COMPLETE"
+  }
+]
+```
 
 ## Testing
 A simple test suite can be found in the folder `./test/simple`. These tests set up a pair of servers and test a local service exposed to a remote connector and a remote service exposed to a local connector. You can execute the tests using [Shipyard](https://shipyard.run):

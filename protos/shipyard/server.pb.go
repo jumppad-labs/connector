@@ -50,6 +50,76 @@ func (ServiceType) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_ad098daeda4239f7, []int{0}
 }
 
+type ServiceStatus int32
+
+const (
+	ServiceStatus_PENDING  ServiceStatus = 0
+	ServiceStatus_COMPLETE ServiceStatus = 1
+	ServiceStatus_ERROR    ServiceStatus = 2
+)
+
+var ServiceStatus_name = map[int32]string{
+	0: "PENDING",
+	1: "COMPLETE",
+	2: "ERROR",
+}
+
+var ServiceStatus_value = map[string]int32{
+	"PENDING":  0,
+	"COMPLETE": 1,
+	"ERROR":    2,
+}
+
+func (x ServiceStatus) String() string {
+	return proto.EnumName(ServiceStatus_name, int32(x))
+}
+
+func (ServiceStatus) EnumDescriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{1}
+}
+
+// Expose remote service - allow traffic on remote server 8081 to be exposed locally at 8080
+// 1. ExposeRequest called on local server
+//      name = service name
+//      serverAddr = http://remote.server
+//      localPort = 8080
+//      remotePort = 8081
+//      type = remote
+// 2. Call CreateListener on local server to setup a TCP listener
+//      name = service name
+//      port = 8080
+// 3. OpenStream called on remote if no stream exists
+type NullMessage struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *NullMessage) Reset()         { *m = NullMessage{} }
+func (m *NullMessage) String() string { return proto.CompactTextString(m) }
+func (*NullMessage) ProtoMessage()    {}
+func (*NullMessage) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{0}
+}
+
+func (m *NullMessage) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NullMessage.Unmarshal(m, b)
+}
+func (m *NullMessage) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NullMessage.Marshal(b, m, deterministic)
+}
+func (m *NullMessage) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NullMessage.Merge(m, src)
+}
+func (m *NullMessage) XXX_Size() int {
+	return xxx_messageInfo_NullMessage.Size(m)
+}
+func (m *NullMessage) XXX_DiscardUnknown() {
+	xxx_messageInfo_NullMessage.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NullMessage proto.InternalMessageInfo
+
 type OpenData struct {
 	ServiceId    string `protobuf:"bytes,1,opt,name=service_id,json=serviceId,proto3" json:"service_id,omitempty"`
 	ConnectionId string `protobuf:"bytes,2,opt,name=connection_id,json=connectionId,proto3" json:"connection_id,omitempty"`
@@ -74,7 +144,7 @@ func (m *OpenData) Reset()         { *m = OpenData{} }
 func (m *OpenData) String() string { return proto.CompactTextString(m) }
 func (*OpenData) ProtoMessage()    {}
 func (*OpenData) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{0}
+	return fileDescriptor_ad098daeda4239f7, []int{1}
 }
 
 func (m *OpenData) XXX_Unmarshal(b []byte) error {
@@ -250,7 +320,7 @@ func (m *Data) Reset()         { *m = Data{} }
 func (m *Data) String() string { return proto.CompactTextString(m) }
 func (*Data) ProtoMessage()    {}
 func (*Data) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{1}
+	return fileDescriptor_ad098daeda4239f7, []int{2}
 }
 
 func (m *Data) XXX_Unmarshal(b []byte) error {
@@ -289,7 +359,7 @@ func (m *NewConnection) Reset()         { *m = NewConnection{} }
 func (m *NewConnection) String() string { return proto.CompactTextString(m) }
 func (*NewConnection) ProtoMessage()    {}
 func (*NewConnection) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{2}
+	return fileDescriptor_ad098daeda4239f7, []int{3}
 }
 
 func (m *NewConnection) XXX_Unmarshal(b []byte) error {
@@ -322,7 +392,7 @@ func (m *WriteDone) Reset()         { *m = WriteDone{} }
 func (m *WriteDone) String() string { return proto.CompactTextString(m) }
 func (*WriteDone) ProtoMessage()    {}
 func (*WriteDone) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{3}
+	return fileDescriptor_ad098daeda4239f7, []int{4}
 }
 
 func (m *WriteDone) XXX_Unmarshal(b []byte) error {
@@ -355,7 +425,7 @@ func (m *ReadDone) Reset()         { *m = ReadDone{} }
 func (m *ReadDone) String() string { return proto.CompactTextString(m) }
 func (*ReadDone) ProtoMessage()    {}
 func (*ReadDone) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{4}
+	return fileDescriptor_ad098daeda4239f7, []int{5}
 }
 
 func (m *ReadDone) XXX_Unmarshal(b []byte) error {
@@ -387,7 +457,7 @@ func (m *Closed) Reset()         { *m = Closed{} }
 func (m *Closed) String() string { return proto.CompactTextString(m) }
 func (*Closed) ProtoMessage()    {}
 func (*Closed) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{5}
+	return fileDescriptor_ad098daeda4239f7, []int{6}
 }
 
 func (m *Closed) XXX_Unmarshal(b []byte) error {
@@ -411,21 +481,17 @@ var xxx_messageInfo_Closed proto.InternalMessageInfo
 // ExposeRequest is a message indicating that a new TCP Listener should be created
 // ExposeRequests will be replayed when a connection is re-opened
 type ExposeRequest struct {
-	Name                 string      `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	RemoteConnectorAddr  string      `protobuf:"bytes,2,opt,name=remoteConnectorAddr,proto3" json:"remoteConnectorAddr,omitempty"`
-	DestinationAddr      string      `protobuf:"bytes,3,opt,name=destinationAddr,proto3" json:"destinationAddr,omitempty"`
-	SourcePort           int32       `protobuf:"varint,4,opt,name=sourcePort,proto3" json:"sourcePort,omitempty"`
-	Type                 ServiceType `protobuf:"varint,6,opt,name=type,proto3,enum=shipyard.ServiceType" json:"type,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}    `json:"-"`
-	XXX_unrecognized     []byte      `json:"-"`
-	XXX_sizecache        int32       `json:"-"`
+	Service              *Service `protobuf:"bytes,1,opt,name=service,proto3" json:"service,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *ExposeRequest) Reset()         { *m = ExposeRequest{} }
 func (m *ExposeRequest) String() string { return proto.CompactTextString(m) }
 func (*ExposeRequest) ProtoMessage()    {}
 func (*ExposeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{6}
+	return fileDescriptor_ad098daeda4239f7, []int{7}
 }
 
 func (m *ExposeRequest) XXX_Unmarshal(b []byte) error {
@@ -446,71 +512,91 @@ func (m *ExposeRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ExposeRequest proto.InternalMessageInfo
 
-func (m *ExposeRequest) GetName() string {
+func (m *ExposeRequest) GetService() *Service {
+	if m != nil {
+		return m.Service
+	}
+	return nil
+}
+
+type Service struct {
+	Name                 string        `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	RemoteConnectorAddr  string        `protobuf:"bytes,2,opt,name=remoteConnectorAddr,proto3" json:"remoteConnectorAddr,omitempty"`
+	DestinationAddr      string        `protobuf:"bytes,3,opt,name=destinationAddr,proto3" json:"destinationAddr,omitempty"`
+	SourcePort           int32         `protobuf:"varint,4,opt,name=sourcePort,proto3" json:"sourcePort,omitempty"`
+	Type                 ServiceType   `protobuf:"varint,6,opt,name=type,proto3,enum=shipyard.ServiceType" json:"type,omitempty"`
+	Status               ServiceStatus `protobuf:"varint,7,opt,name=status,proto3,enum=shipyard.ServiceStatus" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *Service) Reset()         { *m = Service{} }
+func (m *Service) String() string { return proto.CompactTextString(m) }
+func (*Service) ProtoMessage()    {}
+func (*Service) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{8}
+}
+
+func (m *Service) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Service.Unmarshal(m, b)
+}
+func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Service.Marshal(b, m, deterministic)
+}
+func (m *Service) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Service.Merge(m, src)
+}
+func (m *Service) XXX_Size() int {
+	return xxx_messageInfo_Service.Size(m)
+}
+func (m *Service) XXX_DiscardUnknown() {
+	xxx_messageInfo_Service.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Service proto.InternalMessageInfo
+
+func (m *Service) GetName() string {
 	if m != nil {
 		return m.Name
 	}
 	return ""
 }
 
-func (m *ExposeRequest) GetRemoteConnectorAddr() string {
+func (m *Service) GetRemoteConnectorAddr() string {
 	if m != nil {
 		return m.RemoteConnectorAddr
 	}
 	return ""
 }
 
-func (m *ExposeRequest) GetDestinationAddr() string {
+func (m *Service) GetDestinationAddr() string {
 	if m != nil {
 		return m.DestinationAddr
 	}
 	return ""
 }
 
-func (m *ExposeRequest) GetSourcePort() int32 {
+func (m *Service) GetSourcePort() int32 {
 	if m != nil {
 		return m.SourcePort
 	}
 	return 0
 }
 
-func (m *ExposeRequest) GetType() ServiceType {
+func (m *Service) GetType() ServiceType {
 	if m != nil {
 		return m.Type
 	}
 	return ServiceType_LOCAL
 }
 
-type NullResponse struct {
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+func (m *Service) GetStatus() ServiceStatus {
+	if m != nil {
+		return m.Status
+	}
+	return ServiceStatus_PENDING
 }
-
-func (m *NullResponse) Reset()         { *m = NullResponse{} }
-func (m *NullResponse) String() string { return proto.CompactTextString(m) }
-func (*NullResponse) ProtoMessage()    {}
-func (*NullResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{7}
-}
-
-func (m *NullResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_NullResponse.Unmarshal(m, b)
-}
-func (m *NullResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_NullResponse.Marshal(b, m, deterministic)
-}
-func (m *NullResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_NullResponse.Merge(m, src)
-}
-func (m *NullResponse) XXX_Size() int {
-	return xxx_messageInfo_NullResponse.Size(m)
-}
-func (m *NullResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_NullResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_NullResponse proto.InternalMessageInfo
 
 type ExposeResponse struct {
 	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -523,7 +609,7 @@ func (m *ExposeResponse) Reset()         { *m = ExposeResponse{} }
 func (m *ExposeResponse) String() string { return proto.CompactTextString(m) }
 func (*ExposeResponse) ProtoMessage()    {}
 func (*ExposeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{8}
+	return fileDescriptor_ad098daeda4239f7, []int{9}
 }
 
 func (m *ExposeResponse) XXX_Unmarshal(b []byte) error {
@@ -562,7 +648,7 @@ func (m *DestroyRequest) Reset()         { *m = DestroyRequest{} }
 func (m *DestroyRequest) String() string { return proto.CompactTextString(m) }
 func (*DestroyRequest) ProtoMessage()    {}
 func (*DestroyRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_ad098daeda4239f7, []int{9}
+	return fileDescriptor_ad098daeda4239f7, []int{10}
 }
 
 func (m *DestroyRequest) XXX_Unmarshal(b []byte) error {
@@ -590,8 +676,49 @@ func (m *DestroyRequest) GetId() string {
 	return ""
 }
 
+type ServiceResponse struct {
+	Services             []*Service `protobuf:"bytes,1,rep,name=services,proto3" json:"services,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *ServiceResponse) Reset()         { *m = ServiceResponse{} }
+func (m *ServiceResponse) String() string { return proto.CompactTextString(m) }
+func (*ServiceResponse) ProtoMessage()    {}
+func (*ServiceResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_ad098daeda4239f7, []int{11}
+}
+
+func (m *ServiceResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ServiceResponse.Unmarshal(m, b)
+}
+func (m *ServiceResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ServiceResponse.Marshal(b, m, deterministic)
+}
+func (m *ServiceResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ServiceResponse.Merge(m, src)
+}
+func (m *ServiceResponse) XXX_Size() int {
+	return xxx_messageInfo_ServiceResponse.Size(m)
+}
+func (m *ServiceResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ServiceResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ServiceResponse proto.InternalMessageInfo
+
+func (m *ServiceResponse) GetServices() []*Service {
+	if m != nil {
+		return m.Services
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterEnum("shipyard.ServiceType", ServiceType_name, ServiceType_value)
+	proto.RegisterEnum("shipyard.ServiceStatus", ServiceStatus_name, ServiceStatus_value)
+	proto.RegisterType((*NullMessage)(nil), "shipyard.NullMessage")
 	proto.RegisterType((*OpenData)(nil), "shipyard.OpenData")
 	proto.RegisterType((*Data)(nil), "shipyard.Data")
 	proto.RegisterType((*NewConnection)(nil), "shipyard.NewConnection")
@@ -599,9 +726,10 @@ func init() {
 	proto.RegisterType((*ReadDone)(nil), "shipyard.ReadDone")
 	proto.RegisterType((*Closed)(nil), "shipyard.Closed")
 	proto.RegisterType((*ExposeRequest)(nil), "shipyard.ExposeRequest")
-	proto.RegisterType((*NullResponse)(nil), "shipyard.NullResponse")
+	proto.RegisterType((*Service)(nil), "shipyard.Service")
 	proto.RegisterType((*ExposeResponse)(nil), "shipyard.ExposeResponse")
 	proto.RegisterType((*DestroyRequest)(nil), "shipyard.DestroyRequest")
+	proto.RegisterType((*ServiceResponse)(nil), "shipyard.ServiceResponse")
 }
 
 func init() {
@@ -609,44 +737,51 @@ func init() {
 }
 
 var fileDescriptor_ad098daeda4239f7 = []byte{
-	// 586 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x54, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xb5, 0xdb, 0xc4, 0xb5, 0xa7, 0x89, 0x1b, 0x6d, 0x05, 0xb5, 0x22, 0x81, 0x2a, 0xd3, 0x43,
-	0xe8, 0x21, 0xfd, 0xa0, 0x07, 0x8e, 0xf4, 0x4b, 0x4a, 0xa5, 0xd2, 0xa2, 0x6d, 0x25, 0x8e, 0xd5,
-	0xe2, 0x1d, 0x05, 0x4b, 0x89, 0xd7, 0xec, 0x6e, 0x08, 0xf9, 0x8b, 0x9c, 0xf9, 0x17, 0xfc, 0x09,
-	0xb4, 0x6b, 0x3b, 0x76, 0x42, 0x7b, 0x73, 0xde, 0xbc, 0x37, 0x3b, 0x33, 0x6f, 0x26, 0xd0, 0x51,
-	0x28, 0x7f, 0xa2, 0x1c, 0xe6, 0x52, 0x68, 0x41, 0x7c, 0xf5, 0x3d, 0xcd, 0x17, 0x4c, 0xf2, 0xfe,
-	0xde, 0x58, 0x88, 0xf1, 0x04, 0x8f, 0x64, 0x9e, 0x1c, 0x29, 0xcd, 0xf4, 0x4c, 0x15, 0x94, 0xf8,
-	0xef, 0x26, 0xf8, 0xf7, 0x39, 0x66, 0x57, 0x4c, 0x33, 0xf2, 0x06, 0xc0, 0xe8, 0xd3, 0x04, 0x9f,
-	0x52, 0x1e, 0xb9, 0xfb, 0xee, 0x20, 0xa0, 0x41, 0x89, 0xdc, 0x70, 0xf2, 0x0e, 0xba, 0x89, 0xc8,
-	0x32, 0x4c, 0x74, 0x2a, 0x32, 0xc3, 0xd8, 0xb0, 0x8c, 0x4e, 0x0d, 0xde, 0x70, 0x72, 0x00, 0x2d,
-	0xce, 0x34, 0x8b, 0x36, 0xf7, 0xdd, 0xc1, 0xf6, 0x69, 0x38, 0xac, 0x4a, 0x18, 0x9a, 0x17, 0x46,
-	0x0e, 0xb5, 0x51, 0x72, 0x02, 0x1e, 0xfe, 0xca, 0x85, 0xc2, 0xa8, 0x65, 0x79, 0x7b, 0x35, 0xef,
-	0xda, 0xe2, 0x14, 0x7f, 0xcc, 0x50, 0xe9, 0x91, 0x43, 0x4b, 0x22, 0x39, 0x83, 0x2d, 0x8e, 0x4a,
-	0x4b, 0xb1, 0x88, 0xda, 0x56, 0x13, 0x35, 0x72, 0x17, 0x81, 0x5a, 0x54, 0x51, 0xc9, 0x27, 0x08,
-	0x33, 0x9c, 0x3f, 0xd5, 0x25, 0x46, 0xde, 0xfa, 0x83, 0x77, 0x38, 0xbf, 0x5c, 0x86, 0x47, 0x0e,
-	0xed, 0x66, 0x4d, 0x80, 0x9c, 0x01, 0xcc, 0x65, 0xaa, 0xf1, 0x89, 0x8b, 0x0c, 0xa3, 0x2d, 0xab,
-	0xde, 0xad, 0xd5, 0x5f, 0x4d, 0xec, 0x4a, 0x64, 0x38, 0x72, 0x68, 0x30, 0xaf, 0x7e, 0x90, 0x13,
-	0x08, 0x24, 0x32, 0x5e, 0x88, 0x7c, 0x2b, 0x22, 0xb5, 0x88, 0x22, 0xe3, 0xa5, 0xc6, 0x97, 0xe5,
-	0x37, 0x39, 0x04, 0x2f, 0x99, 0x08, 0x85, 0x3c, 0x0a, 0x2c, 0xbf, 0x57, 0xf3, 0x2f, 0x2d, 0x6e,
-	0x86, 0x51, 0x30, 0xc8, 0x21, 0xb4, 0x51, 0x4a, 0x21, 0x23, 0x28, 0x53, 0x17, 0xfe, 0x0e, 0x65,
-	0x9e, 0x0c, 0x1f, 0xac, 0xbf, 0x23, 0x87, 0x16, 0x94, 0x8b, 0x00, 0xb6, 0xa6, 0xa8, 0x14, 0x1b,
-	0x63, 0xdc, 0x87, 0x96, 0x35, 0x9a, 0x94, 0x26, 0x19, 0x8b, 0x3b, 0x85, 0x25, 0xf1, 0x0e, 0x74,
-	0x57, 0x26, 0x11, 0x6f, 0x43, 0xb0, 0x6c, 0x2e, 0x06, 0xf0, 0xab, 0xa2, 0x63, 0x1f, 0xbc, 0xa2,
-	0xa0, 0xf8, 0xb7, 0x0b, 0xdd, 0x15, 0xbf, 0x4c, 0xe6, 0x8c, 0x4d, 0xb1, 0x5c, 0x1e, 0xfb, 0x4d,
-	0x8e, 0x61, 0x57, 0xe2, 0x54, 0x68, 0x2c, 0x93, 0x0b, 0x79, 0xce, 0xb9, 0x2c, 0xb7, 0xe7, 0xb9,
-	0x10, 0x19, 0xc0, 0x8e, 0x31, 0x30, 0xcd, 0x98, 0xa9, 0xc4, 0xb2, 0x37, 0x2d, 0x7b, 0x1d, 0x26,
-	0x6f, 0x01, 0x94, 0x98, 0xc9, 0x04, 0xbf, 0x08, 0xa9, 0xed, 0x32, 0xb5, 0x69, 0x03, 0x21, 0xef,
-	0xa1, 0xa5, 0x17, 0x39, 0x5a, 0xd7, 0xc3, 0xd3, 0x57, 0xf5, 0x48, 0x1f, 0x8a, 0xb5, 0x7e, 0x5c,
-	0xe4, 0x48, 0x2d, 0x25, 0x0e, 0xa1, 0x73, 0x37, 0x9b, 0x4c, 0x28, 0xaa, 0x5c, 0x64, 0x0a, 0xe3,
-	0x7d, 0x08, 0xab, 0xde, 0x0a, 0x84, 0x84, 0xb0, 0xb1, 0xbc, 0x8b, 0x8d, 0x94, 0x1b, 0xc6, 0xea,
-	0xe6, 0xad, 0x33, 0x0e, 0x0f, 0x60, 0xbb, 0xf1, 0x10, 0x09, 0xa0, 0x7d, 0x7b, 0x7f, 0x79, 0x7e,
-	0xdb, 0x73, 0x08, 0x80, 0x47, 0xaf, 0x3f, 0xdf, 0x3f, 0x5e, 0xf7, 0xdc, 0xd3, 0x3f, 0x2e, 0xf4,
-	0x68, 0x73, 0x0c, 0x66, 0xef, 0x3e, 0x02, 0x98, 0xc3, 0x7c, 0xd0, 0x12, 0xd9, 0x94, 0x34, 0x96,
-	0xa7, 0x3a, 0xd7, 0xfe, 0x33, 0xd8, 0xc0, 0x3d, 0x76, 0xc9, 0x45, 0x65, 0x4a, 0xf9, 0x34, 0x79,
-	0xe9, 0xba, 0xfa, 0xd1, 0xff, 0x81, 0xb2, 0xd5, 0x8b, 0x65, 0x6b, 0x55, 0x92, 0x17, 0xcf, 0xad,
-	0xff, 0xba, 0x71, 0x4b, 0x8d, 0x01, 0x7e, 0xf3, 0xec, 0x5f, 0xcc, 0x87, 0x7f, 0x01, 0x00, 0x00,
-	0xff, 0xff, 0x00, 0xe7, 0xfc, 0x80, 0x95, 0x04, 0x00, 0x00,
+	// 695 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x94, 0xcf, 0x6f, 0xda, 0x4a,
+	0x10, 0xc7, 0x31, 0x3f, 0xed, 0xe1, 0x47, 0x78, 0x1b, 0x3d, 0xc5, 0x0f, 0xe9, 0x55, 0xc8, 0xcd,
+	0x81, 0x52, 0x95, 0x24, 0x34, 0x95, 0x7a, 0xe8, 0x21, 0x09, 0x41, 0x25, 0x12, 0x81, 0x68, 0x13,
+	0xa9, 0xc7, 0xc8, 0xc5, 0xa3, 0xd4, 0x12, 0x78, 0xdd, 0x5d, 0x53, 0xca, 0x1f, 0xd2, 0xbf, 0xb2,
+	0xe7, 0xde, 0xab, 0x5d, 0xaf, 0xb1, 0x09, 0xe4, 0x06, 0x33, 0x9f, 0x19, 0xcf, 0xcc, 0x77, 0x76,
+	0xa0, 0x26, 0x90, 0xff, 0x40, 0xde, 0x0b, 0x39, 0x8b, 0x18, 0x31, 0xc5, 0x37, 0x3f, 0x5c, 0xbb,
+	0xdc, 0x6b, 0x1d, 0x3d, 0x31, 0xf6, 0x34, 0xc7, 0x13, 0x1e, 0xce, 0x4e, 0x44, 0xe4, 0x46, 0x4b,
+	0x11, 0x23, 0x4e, 0x1d, 0xaa, 0x93, 0xe5, 0x7c, 0x7e, 0x8b, 0x42, 0xb8, 0x4f, 0xe8, 0xfc, 0x2e,
+	0x80, 0x39, 0x0d, 0x31, 0xb8, 0x76, 0x23, 0x97, 0xfc, 0x0f, 0x20, 0xd3, 0xf9, 0x33, 0x7c, 0xf4,
+	0x3d, 0xdb, 0x68, 0x1b, 0x1d, 0x8b, 0x5a, 0xda, 0x72, 0xe3, 0x91, 0xd7, 0x50, 0x9f, 0xb1, 0x20,
+	0xc0, 0x59, 0xe4, 0xb3, 0x40, 0x12, 0x79, 0x45, 0xd4, 0x52, 0xe3, 0x8d, 0x47, 0x8e, 0xa1, 0xe8,
+	0xb9, 0x91, 0x6b, 0x17, 0xda, 0x46, 0xa7, 0xda, 0x6f, 0xf4, 0x92, 0x8a, 0x7a, 0xf2, 0x0b, 0xa3,
+	0x1c, 0x55, 0x5e, 0x72, 0x06, 0x65, 0xfc, 0x19, 0x32, 0x81, 0x76, 0x51, 0x71, 0x47, 0x29, 0x37,
+	0x54, 0x76, 0x8a, 0xdf, 0x97, 0x28, 0xa2, 0x51, 0x8e, 0x6a, 0x90, 0x9c, 0x43, 0xc5, 0x43, 0x11,
+	0x71, 0xb6, 0xb6, 0x4b, 0x2a, 0xc6, 0xce, 0xe4, 0x8e, 0x1d, 0x69, 0x50, 0x82, 0x92, 0x0b, 0x68,
+	0x04, 0xb8, 0x7a, 0x4c, 0x4b, 0xb4, 0xcb, 0xcf, 0x3f, 0x38, 0xc1, 0xd5, 0x60, 0xe3, 0x1e, 0xe5,
+	0x68, 0x3d, 0xc8, 0x1a, 0xc8, 0x39, 0xc0, 0x8a, 0xfb, 0x11, 0x3e, 0x7a, 0x2c, 0x40, 0xbb, 0xa2,
+	0xa2, 0x0f, 0xd3, 0xe8, 0x2f, 0xd2, 0x77, 0xcd, 0x02, 0x1c, 0xe5, 0xa8, 0xb5, 0x4a, 0xfe, 0x90,
+	0x33, 0xb0, 0x38, 0xba, 0x5e, 0x1c, 0x64, 0xaa, 0x20, 0x92, 0x06, 0x51, 0x74, 0x3d, 0x1d, 0x63,
+	0x72, 0xfd, 0x9b, 0x74, 0xa1, 0x3c, 0x9b, 0x33, 0x81, 0x9e, 0x6d, 0x29, 0xbe, 0x99, 0xf2, 0x03,
+	0x65, 0x97, 0xc3, 0x88, 0x09, 0xd2, 0x85, 0x12, 0x72, 0xce, 0xb8, 0x0d, 0x3a, 0x75, 0x2c, 0x77,
+	0x8f, 0x87, 0xb3, 0xde, 0xbd, 0x92, 0x7b, 0x94, 0xa3, 0x31, 0x72, 0x65, 0x41, 0x65, 0xa1, 0xd5,
+	0x6e, 0x41, 0x51, 0x09, 0x4d, 0xb4, 0x48, 0x52, 0xe2, 0x5a, 0x2c, 0x89, 0x73, 0x00, 0xf5, 0xad,
+	0x49, 0x38, 0x55, 0xb0, 0x36, 0xcd, 0x39, 0x00, 0x66, 0x52, 0xb4, 0x63, 0x42, 0x39, 0x2e, 0xc8,
+	0xf9, 0x04, 0xf5, 0x2d, 0xb9, 0xc8, 0x5b, 0xa8, 0xe8, 0x7d, 0x51, 0xb9, 0xab, 0xfd, 0x7f, 0xd2,
+	0x26, 0xee, 0x63, 0x07, 0x4d, 0x08, 0xe7, 0x8f, 0x01, 0x15, 0x6d, 0x94, 0x15, 0x05, 0xee, 0x02,
+	0xf5, 0xd2, 0xa9, 0xdf, 0xe4, 0x14, 0x0e, 0x39, 0x2e, 0x58, 0x84, 0xba, 0x28, 0xc6, 0x2f, 0x3d,
+	0x8f, 0xeb, 0xad, 0xdb, 0xe7, 0x22, 0x1d, 0x38, 0x90, 0xc2, 0xfb, 0x81, 0x2b, 0x3b, 0x50, 0x74,
+	0x41, 0xd1, 0xcf, 0xcd, 0xe4, 0x15, 0x80, 0x60, 0x4b, 0x3e, 0xc3, 0x3b, 0xc6, 0x23, 0xb5, 0x84,
+	0x25, 0x9a, 0xb1, 0x90, 0x37, 0x50, 0x8c, 0xd6, 0x21, 0xaa, 0x6d, 0x69, 0xf4, 0xff, 0xdd, 0xe9,
+	0xe2, 0x61, 0x1d, 0x22, 0x55, 0x08, 0x39, 0x81, 0x72, 0xfc, 0xc2, 0xd4, 0x72, 0x34, 0xb2, 0xab,
+	0xa5, 0xe1, 0x58, 0x11, 0xaa, 0x31, 0xa7, 0x0d, 0x8d, 0x64, 0x6a, 0x22, 0x64, 0x81, 0x40, 0xd2,
+	0x80, 0xfc, 0xe6, 0xc1, 0xe5, 0x7d, 0x4f, 0x12, 0xdb, 0x2b, 0xbd, 0x43, 0x5c, 0xc0, 0x41, 0x32,
+	0xcf, 0x24, 0xc9, 0x3b, 0x30, 0xf5, 0x64, 0x85, 0x6d, 0xb4, 0x0b, 0xfb, 0x87, 0xbf, 0x41, 0xba,
+	0xc7, 0x50, 0xcd, 0xf4, 0x42, 0x2c, 0x28, 0x8d, 0xa7, 0x83, 0xcb, 0x71, 0x33, 0x47, 0x00, 0xca,
+	0x74, 0x78, 0x3b, 0x7d, 0x18, 0x36, 0x8d, 0xee, 0x07, 0xa8, 0x6f, 0x35, 0x41, 0xaa, 0x50, 0xb9,
+	0x1b, 0x4e, 0xae, 0x6f, 0x26, 0x9f, 0x9b, 0x39, 0x52, 0x03, 0x73, 0x30, 0xbd, 0xbd, 0x1b, 0x0f,
+	0x25, 0x2b, 0x53, 0x0c, 0x29, 0x9d, 0xd2, 0x66, 0xbe, 0xff, 0x2b, 0x0f, 0x4d, 0x9a, 0x15, 0x48,
+	0xbe, 0xa4, 0x8f, 0x00, 0xf2, 0xd4, 0xdc, 0x47, 0x1c, 0xdd, 0x05, 0xc9, 0x3c, 0x87, 0xe4, 0x00,
+	0xb5, 0xf6, 0xd8, 0x3a, 0xc6, 0xa9, 0x41, 0xae, 0x92, 0x3d, 0x4b, 0xd6, 0xe5, 0xa5, 0x7b, 0xd1,
+	0xb2, 0x77, 0x1d, 0x7a, 0x3c, 0x97, 0x9b, 0x99, 0x26, 0x49, 0x5e, 0x3c, 0x20, 0xad, 0x8c, 0xde,
+	0x99, 0x63, 0x49, 0x2e, 0xa0, 0x36, 0xf6, 0x45, 0xa4, 0xe3, 0x05, 0xd9, 0x8f, 0xb5, 0xfe, 0xdb,
+	0x1d, 0xbb, 0x2e, 0xe2, 0x6b, 0x59, 0x1d, 0xe1, 0xf7, 0x7f, 0x03, 0x00, 0x00, 0xff, 0xff, 0x5a,
+	0x84, 0x83, 0x14, 0xb7, 0x05, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -666,7 +801,9 @@ type RemoteConnectionClient interface {
 	// Open a new TCP port for the local service on the server and start listening
 	ExposeService(ctx context.Context, in *ExposeRequest, opts ...grpc.CallOption) (*ExposeResponse, error)
 	// Close the remote TCP port and remove all resources
-	DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error)
+	DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullMessage, error)
+	// Close the remote TCP port and remove all resources
+	ListServices(ctx context.Context, in *NullMessage, opts ...grpc.CallOption) (*ServiceResponse, error)
 }
 
 type remoteConnectionClient struct {
@@ -717,9 +854,18 @@ func (c *remoteConnectionClient) ExposeService(ctx context.Context, in *ExposeRe
 	return out, nil
 }
 
-func (c *remoteConnectionClient) DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullResponse, error) {
-	out := new(NullResponse)
+func (c *remoteConnectionClient) DestroyService(ctx context.Context, in *DestroyRequest, opts ...grpc.CallOption) (*NullMessage, error) {
+	out := new(NullMessage)
 	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/DestroyService", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *remoteConnectionClient) ListServices(ctx context.Context, in *NullMessage, opts ...grpc.CallOption) (*ServiceResponse, error) {
+	out := new(ServiceResponse)
+	err := c.cc.Invoke(ctx, "/shipyard.RemoteConnection/ListServices", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -733,7 +879,9 @@ type RemoteConnectionServer interface {
 	// Open a new TCP port for the local service on the server and start listening
 	ExposeService(context.Context, *ExposeRequest) (*ExposeResponse, error)
 	// Close the remote TCP port and remove all resources
-	DestroyService(context.Context, *DestroyRequest) (*NullResponse, error)
+	DestroyService(context.Context, *DestroyRequest) (*NullMessage, error)
+	// Close the remote TCP port and remove all resources
+	ListServices(context.Context, *NullMessage) (*ServiceResponse, error)
 }
 
 // UnimplementedRemoteConnectionServer can be embedded to have forward compatible implementations.
@@ -746,8 +894,11 @@ func (*UnimplementedRemoteConnectionServer) OpenStream(srv RemoteConnection_Open
 func (*UnimplementedRemoteConnectionServer) ExposeService(ctx context.Context, req *ExposeRequest) (*ExposeResponse, error) {
 	return nil, status1.Errorf(codes.Unimplemented, "method ExposeService not implemented")
 }
-func (*UnimplementedRemoteConnectionServer) DestroyService(ctx context.Context, req *DestroyRequest) (*NullResponse, error) {
+func (*UnimplementedRemoteConnectionServer) DestroyService(ctx context.Context, req *DestroyRequest) (*NullMessage, error) {
 	return nil, status1.Errorf(codes.Unimplemented, "method DestroyService not implemented")
+}
+func (*UnimplementedRemoteConnectionServer) ListServices(ctx context.Context, req *NullMessage) (*ServiceResponse, error) {
+	return nil, status1.Errorf(codes.Unimplemented, "method ListServices not implemented")
 }
 
 func RegisterRemoteConnectionServer(s *grpc.Server, srv RemoteConnectionServer) {
@@ -816,6 +967,24 @@ func _RemoteConnection_DestroyService_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _RemoteConnection_ListServices_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NullMessage)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RemoteConnectionServer).ListServices(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/shipyard.RemoteConnection/ListServices",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RemoteConnectionServer).ListServices(ctx, req.(*NullMessage))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _RemoteConnection_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "shipyard.RemoteConnection",
 	HandlerType: (*RemoteConnectionServer)(nil),
@@ -827,6 +996,10 @@ var _RemoteConnection_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DestroyService",
 			Handler:    _RemoteConnection_DestroyService_Handler,
+		},
+		{
+			MethodName: "ListServices",
+			Handler:    _RemoteConnection_ListServices_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

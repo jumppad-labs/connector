@@ -76,11 +76,13 @@ func (c *Expose) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	// Call the grpc upstream
 	resp, err := c.client.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:                cr.Name,
-		RemoteConnectorAddr: cr.RemoteConnectorAddr,
-		DestinationAddr:     cr.DestinationAddr,
-		SourcePort:          int32(cr.SourcePort),
-		Type:                t,
+		Service: &shipyard.Service{
+			Name:                cr.Name,
+			RemoteConnectorAddr: cr.RemoteConnectorAddr,
+			DestinationAddr:     cr.DestinationAddr,
+			SourcePort:          int32(cr.SourcePort),
+			Type:                t,
+		},
 	})
 
 	if err != nil {

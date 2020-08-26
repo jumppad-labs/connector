@@ -154,21 +154,14 @@ func (r *grpcConn) Close() {
 }
 
 type service struct {
-	exposeRequest  *shipyard.ExposeRequest
+	detail         *shipyard.Service
 	tcpListener    net.Listener
 	tcpConnections map[string]net.Conn
-	status         kStatus
 }
 
 func newService() *service {
 	return &service{tcpConnections: map[string]net.Conn{}}
 }
-
-type kStatus string
-
-const kServicePending kStatus = "Pending"
-const kServiceCreated kStatus = "Created"
-const kServiceError kStatus = "Error"
 
 func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) error {
 	s.log.Info("Received new stream connection from client")
@@ -201,15 +194,15 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 				continue
 			}
 
-			s.log.Info("Expose new service", "service_id", msg.ServiceId, "type", m.Expose.Type)
+			s.log.Info("Expose new service", "service_id", msg.ServiceId, "type", m.Expose.Service.Type)
 
 			// Otherwise create a new service
 			streamInfo.services[msg.ServiceId] = newService()
 
 			// The connection is exposing a local service to us
 			// we need to open a TCP Listener for the service
-			if m.Expose.Type == shipyard.ServiceType_LOCAL {
-				l, err := s.createListenerAndListen(msg.ServiceId, int(m.Expose.SourcePort))
+			if m.Expose.Service.Type == shipyard.ServiceType_LOCAL {
+				l, err := s.createListenerAndListen(msg.ServiceId, int(m.Expose.Service.SourcePort))
 				if err != nil {
 					// we need to send an error back to the connection
 					continue
@@ -220,8 +213,8 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 			}
 
 			// set the remainder of the service info
-			streamInfo.services[msg.ServiceId].exposeRequest = m.Expose
-			streamInfo.services[msg.ServiceId].status = kServiceCreated
+			streamInfo.services[msg.ServiceId].detail = m.Expose.Service
+			streamInfo.services[msg.ServiceId].detail.Status = shipyard.ServiceStatus_COMPLETE
 
 		case *shipyard.OpenData_Destroy:
 			s.log.Info("Destroy service", "service_id", msg.ServiceId)
@@ -254,14 +247,14 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 			// no connection exists, if this is a remote service try to establish a new connection to the upstream service
 			// otherwise ignore as the connection should have been created by the local listener
 			if !ok {
-				if svc.exposeRequest.Type == shipyard.ServiceType_LOCAL {
+				if svc.detail.Type == shipyard.ServiceType_LOCAL {
 					s.log.Error("Local connection does not exist", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 					continue
 				}
 
 				// open a new connection
-				s.log.Debug("Local connection does not exist, creating", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.exposeRequest.DestinationAddr)
-				tcpConn, err = net.Dial("tcp", svc.exposeRequest.DestinationAddr)
+				s.log.Debug("Local connection does not exist, creating", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.detail.DestinationAddr)
+				tcpConn, err = net.Dial("tcp", svc.detail.DestinationAddr)
 				if err != nil {
 					s.log.Error("Unable to create local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
 					continue
@@ -311,14 +304,14 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	s.log.Info("Expose Service", "req", r, "service_id", id)
 
 	svc := newService()
-	svc.exposeRequest = r
-	svc.status = kServicePending
+	svc.detail = r.Service
+	svc.detail.Status = shipyard.ServiceStatus_PENDING
 
 	// find a remote connection
-	si, ok := s.streams.findByRemoteAddr(r.RemoteConnectorAddr)
+	si, ok := s.streams.findByRemoteAddr(r.Service.RemoteConnectorAddr)
 	if !ok {
 		si = newStreamInfo()
-		si.addr = r.RemoteConnectorAddr
+		si.addr = r.Service.RemoteConnectorAddr
 
 		// add the new stream to the collection
 		s.streams.add(si)
@@ -333,7 +326,7 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	return &shipyard.ExposeResponse{Id: id}, nil
 }
 
-func (s *Server) DestroyService(ctx context.Context, dr *shipyard.DestroyRequest) (*shipyard.NullResponse, error) {
+func (s *Server) DestroyService(ctx context.Context, dr *shipyard.DestroyRequest) (*shipyard.NullMessage, error) {
 	s.log.Info("Destroy service", "id", dr.Id)
 
 	// find the remoteConnection for the service
@@ -354,12 +347,32 @@ func (s *Server) DestroyService(ctx context.Context, dr *shipyard.DestroyRequest
 	// delete the service
 	delete(si.services, dr.Id)
 
-	return &shipyard.NullResponse{}, nil
+	return &shipyard.NullMessage{}, nil
+}
+
+func (s *Server) ListServices(ctx context.Context, m *shipyard.NullMessage) (*shipyard.ServiceResponse, error) {
+	s.log.Info("Listing services")
+
+	services := []*shipyard.Service{}
+
+	for _, stream := range s.streams {
+		for _, svc := range stream.services {
+			services = append(services, svc.detail)
+		}
+	}
+
+	return &shipyard.ServiceResponse{Services: services}, nil
 }
 
 // Shutdown the server, closing all connections and listeners
 func (s *Server) Shutdown() {
 	s.log.Info("Shutting down")
+
+	defer func() {
+		if r := recover(); r != nil {
+			s.log.Error("Error when shutting down service", "error", r)
+		}
+	}()
 
 	// close all listeners
 	s.log.Info("Closing all TCPListeners and Connections")
@@ -409,9 +422,9 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 		for id, svc := range conn.services {
 			// set up all the local listeners if the type is remote and the listener does not already
 			// exist
-			if svc.exposeRequest.Type == shipyard.ServiceType_REMOTE && svc.tcpListener == nil {
+			if svc.detail.Type == shipyard.ServiceType_REMOTE && svc.tcpListener == nil {
 				// open the listener locally
-				l, err := s.createListenerAndListen(id, int(svc.exposeRequest.SourcePort))
+				l, err := s.createListenerAndListen(id, int(svc.detail.SourcePort))
 				if err != nil {
 					s.log.Error("Unable to create listener for service", "service_id", id, "error", err)
 					continue
@@ -422,12 +435,12 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			}
 
 			// send the expose message to the remote so it can open
-			s.log.Debug("Sending expose message to remote component", "addr", svc.exposeRequest.RemoteConnectorAddr)
+			s.log.Debug("Sending expose message to remote component", "addr", svc.detail.RemoteConnectorAddr)
 			req := &shipyard.OpenData{ServiceId: id}
-			req.Message = &shipyard.OpenData_Expose{Expose: svc.exposeRequest}
+			req.Message = &shipyard.OpenData_Expose{Expose: &shipyard.ExposeRequest{Service: svc.detail}}
 
 			conn.grpcConn.Send(req)
-			svc.status = kServiceCreated
+			svc.detail.Status = shipyard.ServiceStatus_COMPLETE
 		}
 
 		break
@@ -471,6 +484,11 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 				break // exit this loop as handleReconnection will recall ths function when a connection is established
 			}
 
+			// should not get a nil message but it is possible when shutting down
+			if msg == nil {
+				continue
+			}
+
 			s.log.Debug("Received client message", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
 			switch m := msg.Message.(type) {
 			case *shipyard.OpenData_Data:
@@ -483,16 +501,16 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 				if !ok {
 					// is this an message reply to a local listener, if there is no connection
 					// assume it has gone away so ignore
-					if svc.exposeRequest.Type == shipyard.ServiceType_REMOTE {
-						s.log.Error("Connection does not exist for local listener", "port", svc.exposeRequest.SourcePort)
+					if svc.detail.Type == shipyard.ServiceType_REMOTE {
+						s.log.Error("Connection does not exist for local listener", "port", svc.detail.SourcePort)
 						continue
 					}
 
 					// otherwise create a new upstream connection
 					var err error
-					c, err = net.Dial("tcp", svc.exposeRequest.DestinationAddr)
+					c, err = net.Dial("tcp", svc.detail.DestinationAddr)
 					if err != nil {
-						s.log.Error("Unable to create connection to remote", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.exposeRequest.DestinationAddr)
+						s.log.Error("Unable to create connection to remote", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.detail.DestinationAddr)
 						continue
 					}
 
@@ -524,7 +542,7 @@ func (s *Server) teardownConnection(conn *streamInfo) {
 	for _, svc := range conn.services {
 		// close any open connections
 		s.teardownService(svc)
-		svc.status = kServicePending
+		svc.detail.Status = shipyard.ServiceStatus_PENDING
 	}
 
 	conn.grpcConn = nil
@@ -626,7 +644,10 @@ func (s *Server) handleConnection(serviceID string, conn net.Conn) {
 				s.log.Error("Unable to read data from the connection", "service_id", serviceID, "connection_id", connID, "error", err)
 			}
 
-			delete(svc.services[serviceID].tcpConnections, connID)
+			// the service might already have cleaned up
+			if svc != nil && svc.services[serviceID] != nil {
+				delete(svc.services[serviceID].tcpConnections, connID)
+			}
 			break
 		}
 

@@ -52,14 +52,17 @@ func (l *LocalServer) Close() error {
 
 func (l *LocalServer) createHandlers() *mux.Router {
 	r := mux.NewRouter()
+	cli, _ := getRemoteClient(l.apiAddress)
 
 	// health handler
 	hh := handlers.NewHealth(l.logger.Named("health_handler"))
 	r.Handle("/health", hh).Methods(gohttp.MethodGet)
 
-	cli, _ := getRemoteClient(l.apiAddress)
 	eh := handlers.NewExpose(cli, l.logger.Named("expose_handler"))
 	r.Handle("/expose", eh).Methods(gohttp.MethodPost)
+
+	lh := handlers.NewList(cli, l.logger.Named("list_handler"))
+	r.Handle("/list", lh).Methods(gohttp.MethodGet)
 
 	return r
 }
