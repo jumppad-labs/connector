@@ -18,7 +18,7 @@ service RemoteConnection {
   rpc DestroyService (DestroyRequest) returns (NullMessage);
   
   // Close the remote TCP port and remove all resources  
-  rpc ListServices (NullMessage) returns (ServiceResponse);
+  rpc ListServices (NullMessage) returns (ListResponse);
 }
   
   // Expose local service - allow traffic on remote server 8081 to be sent to local machine 8080
@@ -59,7 +59,8 @@ message OpenData {
     WriteDone write_done = 7;
     ReadDone read_done = 8;
     Closed closed = 9;
-    google.rpc.Status error = 10;
+    StatusUpdate status_update = 10;
+    google.rpc.Status error = 11;
   }
 }
 
@@ -86,6 +87,13 @@ message Closed {}
 // ExposeRequests will be replayed when a connection is re-opened
 message ExposeRequest {
   Service service = 1;
+}
+
+// StatusUpdate is sent by the remote connector when the status
+// of a service changes
+message StatusUpdate {
+  ServiceStatus status = 1;
+  string message = 2;
 }
 
 message Service {
@@ -117,7 +125,7 @@ message DestroyRequest {
   string id = 1;
 }
 
-message ServiceResponse {
+message ListResponse {
   repeated Service services = 1;
 }
 

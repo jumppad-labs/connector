@@ -30,6 +30,7 @@ func createServer(t *testing.T, addr, name string) {
 
 	t.Cleanup(func() {
 		s.Shutdown()
+		grpcServer.Stop()
 		lis.Close()
 	})
 }
@@ -56,7 +57,8 @@ func startLocalServer(t *testing.T) (string, *string) {
 func setupServers(t *testing.T) (string, *string) {
 	// local server
 	createServer(t, ":1234", "server_local")
-	createServer(t, ":1235", "server_remote")
+	createServer(t, ":1235", "server_remote_1")
+	createServer(t, ":1236", "server_remote_2")
 
 	// setup the local endpoint
 	return startLocalServer(t)
@@ -96,6 +98,213 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	_, err = net.Dial("tcp", "localhost:19000")
 	require.NoError(t, err)
 }
+func TestExposeRemoteServiceCreatesLocalListener2(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.NoError(t, err)
+}
+
+func TestExposeRemoteServiceUpdatesStatus(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+}
+
+func TestExposeRemoteDuplicateReturnsError(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test1",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	_, err = c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test2",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.Error(t, err)
+}
+
+func TestExposeLocalDuplicateReturnsError(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test1",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	_, err = c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test2",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.Error(t, err)
+}
+func TestExposeLocalDifferentServersReturnsOK(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test1",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	_, err = c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test2",
+			RemoteConnectorAddr: "localhost:1236",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+}
+
+func TestExposeLocalDifferentConnectionsReturnsError(t *testing.T) {
+	c, _, _ := setupTests(t)
+	c2 := createClient(t, "localhost:1235")
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test1",
+			RemoteConnectorAddr: "localhost:1236",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	_, err = c2.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test2",
+			RemoteConnectorAddr: "localhost:1236",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// Both connections will return OK as there is no local validation failure
+	// however the second connection will fail and the server will return a message
+	// as the listener is in use
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c2.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_ERROR {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+}
 
 func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
 	c, _, _ := setupTests(t)
@@ -109,10 +318,24 @@ func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
 			Type:                shipyard.ServiceType_REMOTE,
 		},
 	})
-	time.Sleep(100 * time.Millisecond) // wait for setup
 
 	require.NoError(t, err)
 	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
 
 	// check the listener exists
 	_, err = net.Dial("tcp", "localhost:19000")

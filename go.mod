@@ -14,4 +14,5 @@ require (
 	github.com/tj/assert v0.0.0-20190920132354-ee03d75cd160
 	google.golang.org/genproto v0.0.0-20190819201941-24fa4b261c55
 	google.golang.org/grpc v1.28.0
+	google.golang.org/protobuf v1.23.0
 )

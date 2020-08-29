@@ -35,12 +35,17 @@ type Server struct {
 	log hclog.Logger
 	// Collection which listeners and tcp connections for a Server stream
 	streams streams
+	// track a running server so it does not continually attempt to reconnect when shutting down
+	running bool
 }
 
 func New(l hclog.Logger) *Server {
+	l.Info("Creating new Server")
+
 	return &Server{
 		l,
 		streams{},
+		true,
 	}
 }
 
@@ -121,6 +126,10 @@ type grpcConn struct {
 }
 
 func (r *grpcConn) Send(data *shipyard.OpenData) {
+	if r == nil || r.conn == nil {
+		return
+	}
+
 	switch c := r.conn.(type) {
 	case shipyard.RemoteConnection_OpenStreamClient:
 		c.Send(data)
@@ -130,10 +139,6 @@ func (r *grpcConn) Send(data *shipyard.OpenData) {
 }
 
 func (r *grpcConn) Recv() (*shipyard.OpenData, error) {
-	if r == nil {
-		return nil, nil
-	}
-
 	switch c := r.conn.(type) {
 	case shipyard.RemoteConnection_OpenStreamClient:
 		return c.Recv()
@@ -145,11 +150,9 @@ func (r *grpcConn) Recv() (*shipyard.OpenData, error) {
 }
 
 func (r *grpcConn) Close() {
-	if r != nil {
-		switch c := r.conn.(type) {
-		case shipyard.RemoteConnection_OpenStreamClient:
-			c.CloseSend()
-		}
+	switch c := r.conn.(type) {
+	case shipyard.RemoteConnection_OpenStreamClient:
+		c.CloseSend()
 	}
 }
 
@@ -181,7 +184,7 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 			// We need to tear down any listeners related to this request and clean up resources
 			// the downstream should attempt to re-establish the connection and resend the expose requests
 			s.teardownConnection(streamInfo)
-			break
+			return nil
 		}
 
 		s.log.Debug("Received server message", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "type", reflect.TypeOf(msg.Message))
@@ -196,25 +199,45 @@ func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) erro
 
 			s.log.Info("Expose new service", "service_id", msg.ServiceId, "type", m.Expose.Service.Type)
 
-			// Otherwise create a new service
-			streamInfo.services[msg.ServiceId] = newService()
-
 			// The connection is exposing a local service to us
 			// we need to open a TCP Listener for the service
+			var listener net.Listener
 			if m.Expose.Service.Type == shipyard.ServiceType_LOCAL {
-				l, err := s.createListenerAndListen(msg.ServiceId, int(m.Expose.Service.SourcePort))
+				var err error
+				listener, err = s.createListenerAndListen(msg.ServiceId, int(m.Expose.Service.SourcePort))
 				if err != nil {
+					s.log.Info("Error creating listener", "service_id", msg.ServiceId, "type", m.Expose.Service.Type)
 					// we need to send an error back to the connection
+					svr.Send(&shipyard.OpenData{
+						ServiceId: msg.ServiceId,
+						Message: &shipyard.OpenData_StatusUpdate{
+							StatusUpdate: &shipyard.StatusUpdate{
+								Status:  shipyard.ServiceStatus_ERROR,
+								Message: err.Error(),
+							},
+						},
+					})
+
 					continue
 				}
-
-				// set the listener on our collection
-				streamInfo.services[msg.ServiceId].tcpListener = l
 			}
+
+			// set the listener on our collection
+			streamInfo.services[msg.ServiceId] = newService()
+			streamInfo.services[msg.ServiceId].tcpListener = listener
 
 			// set the remainder of the service info
 			streamInfo.services[msg.ServiceId].detail = m.Expose.Service
 			streamInfo.services[msg.ServiceId].detail.Status = shipyard.ServiceStatus_COMPLETE
+
+			svr.Send(&shipyard.OpenData{
+				ServiceId: msg.ServiceId,
+				Message: &shipyard.OpenData_StatusUpdate{
+					StatusUpdate: &shipyard.StatusUpdate{
+						Status: shipyard.ServiceStatus_COMPLETE,
+					},
+				},
+			})
 
 		case *shipyard.OpenData_Destroy:
 			s.log.Info("Destroy service", "service_id", msg.ServiceId)
@@ -303,6 +326,24 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	id := uuid.New().String()
 	s.log.Info("Expose Service", "req", r, "service_id", id)
 
+	// validate that there is not already a service
+	for _, s := range s.streams {
+		for _, svc := range s.services {
+			// check to see if we already have a listener defined for this port
+			if svc.detail.SourcePort == r.Service.SourcePort &&
+				svc.detail.Type == shipyard.ServiceType_REMOTE {
+				return nil, status.Errorf(codes.InvalidArgument, "Unable to expose remote service on port %d, port already in use", r.Service.SourcePort)
+			}
+
+			// check to see if there is a listener defined on the remote server for this port
+			if svc.detail.Type == shipyard.ServiceType_LOCAL &&
+				svc.detail.RemoteConnectorAddr == r.Service.RemoteConnectorAddr &&
+				svc.detail.SourcePort == r.Service.SourcePort {
+				return nil, status.Errorf(codes.InvalidArgument, "Unable to expose remote service on port %d, port already in use", r.Service.SourcePort)
+			}
+		}
+	}
+
 	svc := newService()
 	svc.detail = r.Service
 	svc.detail.Status = shipyard.ServiceStatus_PENDING
@@ -350,7 +391,7 @@ func (s *Server) DestroyService(ctx context.Context, dr *shipyard.DestroyRequest
 	return &shipyard.NullMessage{}, nil
 }
 
-func (s *Server) ListServices(ctx context.Context, m *shipyard.NullMessage) (*shipyard.ServiceResponse, error) {
+func (s *Server) ListServices(ctx context.Context, m *shipyard.NullMessage) (*shipyard.ListResponse, error) {
 	s.log.Info("Listing services")
 
 	services := []*shipyard.Service{}
@@ -361,12 +402,13 @@ func (s *Server) ListServices(ctx context.Context, m *shipyard.NullMessage) (*sh
 		}
 	}
 
-	return &shipyard.ServiceResponse{Services: services}, nil
+	return &shipyard.ListResponse{Services: services}, nil
 }
 
 // Shutdown the server, closing all connections and listeners
 func (s *Server) Shutdown() {
 	s.log.Info("Shutting down")
+	s.running = false
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -392,13 +434,15 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 		return nil
 	}
 
+	s.log.Info("Connecting to server", "addr", conn.addr)
+
 	// mark we are attempting to connect
 	conn.connecting = true
 	defer func() {
 		conn.connecting = false
 	}()
 
-	for {
+	for s.running {
 		// if we do not have a connection create one
 		if conn.grpcConn == nil {
 			// connect to the service
@@ -420,6 +464,11 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 
 		// loop all services and try to reconfigure
 		for id, svc := range conn.services {
+			// do not attempt when status is Error
+			if svc.detail.Status == shipyard.ServiceStatus_ERROR {
+				continue
+			}
+
 			// set up all the local listeners if the type is remote and the listener does not already
 			// exist
 			if svc.detail.Type == shipyard.ServiceType_REMOTE && svc.tcpListener == nil {
@@ -440,7 +489,6 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			req.Message = &shipyard.OpenData_Expose{Expose: &shipyard.ExposeRequest{Service: svc.detail}}
 
 			conn.grpcConn.Send(req)
-			svc.detail.Status = shipyard.ServiceStatus_COMPLETE
 		}
 
 		break
@@ -481,7 +529,7 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 				s.teardownConnection(si)
 
 				s.handleReconnection(si)
-				break // exit this loop as handleReconnection will recall ths function when a connection is established
+				return // exit this loop as handleReconnection will recall ths function when a connection is established
 			}
 
 			// should not get a nil message but it is possible when shutting down
@@ -533,6 +581,10 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 					c.Close()
 					delete(svc.tcpConnections, msg.ConnectionId)
 				}
+			case *shipyard.OpenData_StatusUpdate:
+				s.log.Debug("Received status message", "service_id", msg.ServiceId, "status", m.StatusUpdate.Status)
+				svc := si.services[msg.ServiceId]
+				svc.detail.Status = m.StatusUpdate.Status
 			}
 		}
 	}(si)
@@ -548,7 +600,12 @@ func (s *Server) teardownConnection(conn *streamInfo) {
 	conn.grpcConn = nil
 }
 
+var teardownSync = sync.Mutex{}
+
 func (s *Server) teardownService(svc *service) {
+	teardownSync.Lock()
+	defer teardownSync.Unlock()
+
 	for id, c := range svc.tcpConnections {
 		c.Close()
 		delete(svc.tcpConnections, id)
@@ -556,6 +613,7 @@ func (s *Server) teardownService(svc *service) {
 
 	// close the listener
 	if svc.tcpListener != nil {
+		s.log.Debug("Closing TCP Listener", "addr", svc.tcpListener.Addr())
 		svc.tcpListener.Close()
 		svc.tcpListener = nil
 	}

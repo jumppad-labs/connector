@@ -31,7 +31,7 @@ func (t *testClient) DestroyService(ctx context.Context, in *shipyard.DestroyReq
 	return nil, nil
 }
 
-func (t *testClient) ListServices(ctx context.Context, in *shipyard.NullMessage, opts ...grpc.CallOption) (*shipyard.ServiceResponse, error) {
+func (t *testClient) ListServices(ctx context.Context, in *shipyard.NullMessage, opts ...grpc.CallOption) (*shipyard.ListResponse, error) {
 	return nil, nil
 }
 
