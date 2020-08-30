@@ -273,7 +273,7 @@ func TestExposeLocalDifferentConnectionsReturnsError(t *testing.T) {
 		50*time.Millisecond,
 	)
 
-	_, err = c2.ExposeService(context.Background(), &shipyard.ExposeRequest{
+	resp, err = c2.ExposeService(context.Background(), &shipyard.ExposeRequest{
 		Service: &shipyard.Service{
 			Name:                "Test2",
 			RemoteConnectorAddr: "localhost:1236",
