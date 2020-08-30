@@ -1,4 +1,6 @@
 syntax = "proto3";
+import "google/rpc/status.proto";
+
 package shipyard;
 
 service RemoteConnection {
@@ -13,13 +15,10 @@ service RemoteConnection {
   rpc ExposeService (ExposeRequest) returns (ExposeResponse);
   
   // Close the remote TCP port and remove all resources  
-  rpc DestroyService (DestroyRequest) returns (NullResponse);
-
-  // Create a TCP socket and listen for traffic 
-  rpc CreateListener(ListenerRequest) returns (NullResponse);
-
-  // Close  a local TCP socket and stop listenng for traffic 
-  rpc DestroyListener(ListenerRequest) returns (NullResponse);
+  rpc DestroyService (DestroyRequest) returns (NullMessage);
+  
+  // Close the remote TCP port and remove all resources  
+  rpc ListServices (NullMessage) returns (ListResponse);
 }
   
   // Expose local service - allow traffic on remote server 8081 to be sent to local machine 8080
@@ -45,35 +44,65 @@ service RemoteConnection {
   //      name = service name
   //      port = 8080
   // 3. OpenStream called on remote if no stream exists
-
-message NullResponse{}
+message NullMessage{}
 
 message OpenData {
   string service_id    = 1;
   string connection_id = 2;
-  string location      = 3;
-  MessageType type     = 4;
-  bytes data           = 5;
+
+  // different messages can be sent to the stream
+  oneof message {
+    Data data = 3;
+    ExposeRequest expose = 4;
+    DestroyRequest destroy = 5;
+    NewConnection new_connection = 6;
+    WriteDone write_done = 7;
+    ReadDone read_done = 8;
+    Closed closed = 9;
+    StatusUpdate status_update = 10;
+    google.rpc.Status error = 11;
+  }
 }
 
-enum MessageType {
-  HELLO          = 0;
-  CLOSED         = 1;
-  DATA           = 2;
-  NEW_CONNECTION = 3;
-  WRITE_DONE     = 4;
-  READ_DONE      = 5;
-  ERROR          = 6;
+// Data is a message containing data for a connection
+message Data {
+  bytes data = 1;
 }
 
+// Indicates that a new connection has been received
+message NewConnection {}
+
+// WriteDone is sent when writing to a socket has been completed
+// the next step is to read a reply
+message WriteDone {}
+
+// ReadDone is sent when all data has been read from a socket
+// the next step is to write a reply
+message ReadDone {}
+
+// Closed is sent when a remote connection is closed
+message Closed {}
+
+// ExposeRequest is a message indicating that a new TCP Listener should be created
+// ExposeRequests will be replayed when a connection is re-opened
 message ExposeRequest {
+  Service service = 1;
+}
+
+// StatusUpdate is sent by the remote connector when the status
+// of a service changes
+message StatusUpdate {
+  ServiceStatus status = 1;
+  string message = 2;
+}
+
+message Service {
   string name = 1; // name of the service
-  string remoteServerAddr = 2; // address of the remote component for the service
-  string serviceAddr = 3; // address of the service being exposed
-  int32 localPort = 4; // local port to expose on
-  int32 remotePort = 5; // port to expose on
+  string remoteConnectorAddr = 2; // address of the remote component for the service
+  string destinationAddr = 3; // address of the service being exposed
+  int32 sourcePort = 4; // local port to expose on
   ServiceType type = 6; // is the service running on this machine or the remote machine
-  repeated Match matches = 7;
+  ServiceStatus status = 7;
 }
 
 enum ServiceType {
@@ -81,20 +110,26 @@ enum ServiceType {
   REMOTE = 1; // Service exists  on remote component
 }
 
+enum ServiceStatus {
+  PENDING = 0; // Service is pending setup
+  COMPLETE  = 1; // Service has been setup
+  ERROR = 2; // Service has errored when attempting setup
+}
+
+
 message ExposeResponse {
   string id = 1; // id of the service
 }
 
-message ListenerRequest {
-  string id = 1; // id of the service
-  int32 localPort = 2; // local port to expose on
-}
-
 message DestroyRequest {
   string id = 1;
-  string serverAddr = 2; // address of the local listener, local listener can be localhost
 }
 
+message ListResponse {
+  repeated Service services = 1;
+}
+
+/*
 message Match {
   Http http = 1;
   Grpc gRPC = 2;
@@ -111,7 +146,7 @@ message Header {
 
 message Grpc {
 }
-
+*/
 /*
 1. Client calls Create with the service details and receives a connection id
 2. OnCreate server registers the service and opens a TCP port where remote traffic can be received (also sets up a traffic splitter in consul?)

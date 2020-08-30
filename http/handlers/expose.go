@@ -25,12 +25,11 @@ func NewExpose(client shipyard.RemoteConnectionClient, l hclog.Logger) *Expose {
 
 // ExposeRequest is the JSON request for the Create handler
 type ExposeRequest struct {
-	Name             string `json:"name" validate:"required"`
-	LocalPort        int    `json:"local_port" validate:"required"`
-	RemotePort       int    `json:"remote_port" validate:"required"`
-	RemoteServerAddr string `json:"remote_server_addr" validate:"required"`
-	ServiceAddr      string `json:"service_addr" validate:"required"`
-	Type             string `json:"type" validate:"oneof=local remote"`
+	Name                string `json:"name" validate:"required"`
+	SourcePort          int    `json:"source_port" validate:"required"`
+	RemoteConnectorAddr string `json:"remote_connector_addr" validate:"required"`
+	DestinationAddr     string `json:"destination_addr" validate:"required"`
+	Type                string `json:"type" validate:"oneof=local remote"`
 }
 
 // Validate the struct and return an error if invalid
@@ -77,12 +76,13 @@ func (c *Expose) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	// Call the grpc upstream
 	resp, err := c.client.ExposeService(context.Background(), &shipyard.ExposeRequest{
-		Name:             cr.Name,
-		RemoteServerAddr: cr.RemoteServerAddr,
-		ServiceAddr:      cr.ServiceAddr,
-		LocalPort:        int32(cr.LocalPort),
-		RemotePort:       int32(cr.RemotePort),
-		Type:             t,
+		Service: &shipyard.Service{
+			Name:                cr.Name,
+			RemoteConnectorAddr: cr.RemoteConnectorAddr,
+			DestinationAddr:     cr.DestinationAddr,
+			SourcePort:          int32(cr.SourcePort),
+			Type:                t,
+		},
 	})
 
 	if err != nil {

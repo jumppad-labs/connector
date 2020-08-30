@@ -26,10 +26,9 @@ To expose the local dev service a POST request would be made to the local connec
 curl localhost:9091/expose -d \
   '{
     "name":"devservice", 
-    "local_port": 9090, 
-    "remote_port": 13000, 
-    "remote_server_addr": "82.42.12.21:9092", 
-    "service_addr": "localhost:9090",
+    "source_port": 9090, 
+    "remote_connector_addr": "82.42.12.21:9092", 
+    "destination_addr": "localhost:9090",
     "type": "local"
   }'
 ```
@@ -64,22 +63,17 @@ The expose endpoint allows you establish new connections between local and remot
 
 The name parameter is a human readable name for the exposed service.
 
-**local_port**  
+**source_port**  
 **type**: int
 
-The port on the local machine used to access the service.
+The port where the service will be accessible. If the service type is "local", this port will be a listener on the remote connector as it is exposing a local service. If the service type is "remote", this port will be a listener on the local connector as it is exposing a remote service.
 
-**remote_port**  
-**type**: int
-
-The port on the remote machine used to access the service.
-
-**remote_server_addr**  
+**remote_connector_addr**  
 **type**: string
 
-The address of the remote servers gRPC API
+The address of the remote connectors gRPC API
 
-**service_addr**  
+**destination_addr**  
 **type**: string
 
 FQDN of the exposed service, this address is used by the terminating Connector to send the traffic to the destination. E.g. localhost or Kubernetes service name.
@@ -92,8 +86,38 @@ String GUID for the created connection
 
 Type specifies the direction of the traffic. A value of `local`, exposes a service on the local machine to the remote connector. A value of `remote` exposes a service on the remote machine to the local connector.
 
+### DELETE /expose/{id}
+
+Delete the exposed service with the given id
+
 ### GET /health
 Return the health of the Connector.
+
+### GET /list
+Return a list of configured services
+
+```
+[
+  {
+    "id": "",
+    "name": "test",
+    "source_port": 12000,
+    "remote_connector_addr": "remote-connector.container.shipyard.run:9092",
+    "destination_addr": "remote-service.container.shipyard.run:9095",
+    "type": "REMOTE",
+    "status": "COMPLETE"
+  },
+  {
+    "id": "",
+    "name": "test1",
+    "source_port": 13000,
+    "remote_connector_addr": "remote-connector.container.shipyard.run:9092",
+    "destination_addr": "local-service.container.shipyard.run:9094",
+    "type": "LOCAL",
+    "status": "COMPLETE"
+  }
+]
+```
 
 ## Testing
 A simple test suite can be found in the folder `./test/simple`. These tests set up a pair of servers and test a local service exposed to a remote connector and a remote service exposed to a local connector. You can execute the tests using [Shipyard](https://shipyard.run):
