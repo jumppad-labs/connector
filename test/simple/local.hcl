@@ -1,6 +1,6 @@
 container "local_connector" {
   image {
-    name = "shipyardrun/connector:dev"
+    name = "registry.shipyard.run/connector:dev"
   }
 
   env_var = {
