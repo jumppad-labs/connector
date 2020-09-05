@@ -4,8 +4,11 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +38,29 @@ func TestCASerializeToString(t *testing.T) {
 	xc, err := x509.ParseCertificate(b.Bytes)
 	require.NoError(t, err)
 	require.True(t, xc.IsCA)
+}
+
+func TestCAReadWriteFile(t *testing.T) {
+	tmp, err := ioutil.TempDir("", "")
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.RemoveAll(tmp)
+	})
+
+	k, err := GenerateKeyPair()
+	require.NoError(t, err)
+
+	c, err := GenerateCA(k.Private)
+
+	c.WriteFile(path.Join(tmp, "test.cert"))
+	require.NoError(t, err)
+
+	c2 := &X509{}
+	c2.ReadFile(path.Join(tmp, "test.cert"))
+	require.NoError(t, err)
+
+	require.True(t, c2.IsCA)
 }
 
 func TestGeneratesLeaf(t *testing.T) {

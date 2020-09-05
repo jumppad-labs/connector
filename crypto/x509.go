@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/big"
 	"net"
 	"time"
@@ -15,6 +16,8 @@ import (
 type CertReaderWriter interface {
 	fmt.Stringer
 	PEMBlock() []byte
+	ReadFile(path string) error
+	WriteFile(path string) error
 }
 
 type X509 struct {
@@ -26,10 +29,39 @@ func (x *X509) String() string {
 	return string(x.PEMBlock())
 }
 
-// Retrun a PEM encode byte array
+// PEMBlock encodes the certificate to a PEM encoded byte array
 func (x *X509) PEMBlock() []byte {
 	b := pem.Block{Type: "CERTIFICATE", Bytes: x.Raw}
 	return pem.EncodeToMemory(&b)
+}
+
+// ReadFile loads the key from a PEM encoded file
+func (x *X509) ReadFile(path string) error {
+	d, err := ioutil.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("Unable to read file at path: %s", path)
+	}
+
+	b, _ := pem.Decode(d)
+
+	xc, err := x509.ParseCertificate(b.Bytes)
+	if err != nil {
+		return fmt.Errorf("Unable to decode file at path: %s", path)
+	}
+
+	x.Certificate = xc
+
+	return nil
+}
+
+// WriteFile writes the Certificate to the given path
+func (x *X509) WriteFile(path string) error {
+	err := ioutil.WriteFile(path, x.PEMBlock(), 0400)
+	if err != nil {
+		return fmt.Errorf("Unable to write cert to path %s: %s", path, err)
+	}
+
+	return nil
 }
 
 // GenerateLeaf creates an X509 leaf certificate
