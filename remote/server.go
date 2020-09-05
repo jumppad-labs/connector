@@ -2,6 +2,8 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io"
 	"net"
@@ -14,6 +16,7 @@ import (
 	"github.com/shipyard-run/connector/protos/shipyard"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 )
 
@@ -37,15 +40,25 @@ type Server struct {
 	streams streams
 	// track a running server so it does not continually attempt to reconnect when shutting down
 	running bool
+
+	certPool *x509.CertPool
+	cert     *tls.Certificate
 }
 
-func New(l hclog.Logger) *Server {
-	l.Info("Creating new Server")
+// New creates a new gRPC remote connector server
+func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate) *Server {
+	if certPool != nil && cert != nil {
+		l.Info("Creating new Server with mTLS")
+	} else {
+		l.Info("Creating new Server")
+	}
 
 	return &Server{
 		l,
 		streams{},
 		true,
+		certPool,
+		cert,
 	}
 }
 
@@ -139,6 +152,10 @@ func (r *grpcConn) Send(data *shipyard.OpenData) {
 }
 
 func (r *grpcConn) Recv() (*shipyard.OpenData, error) {
+	if r == nil {
+		return nil, nil
+	}
+
 	switch c := r.conn.(type) {
 	case shipyard.RemoteConnection_OpenStreamClient:
 		return c.Recv()
@@ -621,6 +638,24 @@ func (s *Server) teardownService(svc *service) {
 
 // get a gRPC client for the given address
 func (s *Server) getClient(addr string) (shipyard.RemoteConnectionClient, error) {
+	// are we using TLS?
+	if s.certPool != nil && s.cert != nil {
+		s.log.Debug("Creating TLS connection", "addr", addr)
+		creds := credentials.NewTLS(&tls.Config{
+			ServerName:   addr,
+			Certificates: []tls.Certificate{*s.cert},
+			RootCAs:      s.certPool,
+		})
+
+		// Create a connection with the TLS credentials
+		conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
+		if err != nil {
+			return nil, fmt.Errorf("could not dial %s: %s", addr, err)
+		}
+
+		return shipyard.NewRemoteConnectionClient(conn), nil
+	}
+
 	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions())
 	if err != nil {
 		return nil, err

@@ -2,6 +2,8 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -13,12 +15,31 @@ import (
 	"github.com/shipyard-run/connector/protos/shipyard"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 func createServer(t *testing.T, addr, name string) {
+	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	require.NoError(t, err)
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	require.NoError(t, err)
+
+	ok := certPool.AppendCertsFromPEM(ca)
+	require.True(t, ok)
+
 	// start the gRPC server
-	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}))
-	grpcServer := grpc.NewServer()
+	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}), certPool, &certificate)
+
+	creds := credentials.NewTLS(&tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{certificate},
+		ClientCAs:    certPool,
+	})
+
+	grpcServer := grpc.NewServer(grpc.Creds(creds))
 	shipyard.RegisterRemoteConnectionServer(grpcServer, s)
 
 	// create a listener for the server
@@ -65,7 +86,25 @@ func setupServers(t *testing.T) (string, *string) {
 }
 
 func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions())
+	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	require.NoError(t, err)
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	require.NoError(t, err)
+
+	ok := certPool.AppendCertsFromPEM(ca)
+	require.True(t, ok)
+
+	creds := credentials.NewTLS(&tls.Config{
+		ServerName:   addr,
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      certPool,
+	})
+
+	// Create a connection with the TLS credentials
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
 
 	return shipyard.NewRemoteConnectionClient(conn)

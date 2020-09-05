@@ -3,11 +3,14 @@ container "local_connector" {
     name = "registry.shipyard.run/connector:dev"
   }
 
-  env_var = {
-    "BIND_ADDR_GRPC": "0.0.0.0:9090"
-    "BIND_ADDR_HTTP": "0.0.0.0:9091"
-    "LOG_LEVEL": "debug"
-  }
+  command = [
+    "run",
+    "--grpc-bind=:9090",
+    "--http-bind=:9091",
+    "--root-cert-path=/certs/root.cert",
+    "--server-cert-path=/certs/leaf.cert",
+    "--server-key-path=/certs/leaf.key",
+  ]
   
   port_range {
     range = "9090-9091"
@@ -15,12 +18,17 @@ container "local_connector" {
   }
 
   port_range {
-    range = "12000-12100"
+    range = "12000-12010"
     enable_host = true
   }
 
   network {
     name = "network.local"
+  }
+
+  volume {
+    source = "./certs"
+    destination = "/certs"
   }
 }
 
