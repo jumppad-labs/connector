@@ -10,7 +10,6 @@ import (
 	"net"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/shipyard-run/connector/http"
@@ -84,10 +83,6 @@ var runCmd = &cobra.Command{
 		if err != nil {
 			l.Error("Unable to start HTTP server", "error", err)
 			os.Exit(1)
-		}
-
-		for {
-			time.Sleep(100 * time.Millisecond)
 		}
 
 		c := make(chan os.Signal, 1)
