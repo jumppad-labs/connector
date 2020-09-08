@@ -2,12 +2,16 @@ container "remote_connector" {
   image {
     name = "registry.shipyard.run/connector:dev"
   }
-
-  env_var = {
-    "BIND_ADDR_GRPC": "0.0.0.0:9092"
-    "BIND_ADDR_HTTP": "0.0.0.0:9093"
-    "LOG_LEVEL": "debug"
-  }
+  
+  command = [
+    "run",
+    "--grpc-bind=:9092",
+    "--http-bind=:9093",
+    "--log-level=debug",
+    "--root-cert-path=/certs/root.cert",
+    "--server-cert-path=/certs/leaf.cert",
+    "--server-key-path=/certs/leaf.key",
+  ]
 
   port_range {
     range = "9092-9093"
@@ -15,12 +19,17 @@ container "remote_connector" {
   }
 
   port_range {
-    range = "13000-13100"
+    range = "13000-13010"
     enable_host = true
   }
   
   network {
     name = "network.local"
+  }
+  
+  volume {
+    source = "./certs"
+    destination = "/certs"
   }
 }
 

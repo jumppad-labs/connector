@@ -2,6 +2,8 @@ package remote
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -13,12 +15,31 @@ import (
 	"github.com/shipyard-run/connector/protos/shipyard"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
-func createServer(t *testing.T, addr, name string) {
+func createServer(t *testing.T, addr, name string) *Server {
+	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	require.NoError(t, err)
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	require.NoError(t, err)
+
+	ok := certPool.AppendCertsFromPEM(ca)
+	require.True(t, ok)
+
 	// start the gRPC server
-	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}))
-	grpcServer := grpc.NewServer()
+	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}), certPool, &certificate)
+
+	creds := credentials.NewTLS(&tls.Config{
+		ClientAuth:   tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{certificate},
+		ClientCAs:    certPool,
+	})
+
+	grpcServer := grpc.NewServer(grpc.Creds(creds))
 	shipyard.RegisterRemoteConnectionServer(grpcServer, s)
 
 	// create a listener for the server
@@ -33,6 +54,8 @@ func createServer(t *testing.T, addr, name string) {
 		grpcServer.Stop()
 		lis.Close()
 	})
+
+	return s
 }
 
 func startLocalServer(t *testing.T) (string, *string) {
@@ -54,18 +77,40 @@ func startLocalServer(t *testing.T) (string, *string) {
 	return ts.Listener.Addr().String(), &bodyData
 }
 
+var servers []*Server
+
 func setupServers(t *testing.T) (string, *string) {
 	// local server
-	createServer(t, ":1234", "server_local")
-	createServer(t, ":1235", "server_remote_1")
-	createServer(t, ":1236", "server_remote_2")
+	servers = []*Server{
+		createServer(t, ":1234", "server_local"),
+		createServer(t, ":1235", "server_remote_1"),
+		createServer(t, ":1236", "server_remote_2"),
+	}
 
 	// setup the local endpoint
 	return startLocalServer(t)
 }
 
 func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
-	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions())
+	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	require.NoError(t, err)
+
+	// Create a certificate pool from the certificate authority
+	certPool := x509.NewCertPool()
+	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	require.NoError(t, err)
+
+	ok := certPool.AppendCertsFromPEM(ca)
+	require.True(t, ok)
+
+	creds := credentials.NewTLS(&tls.Config{
+		ServerName:   addr,
+		Certificates: []tls.Certificate{certificate},
+		RootCAs:      certPool,
+	})
+
+	// Create a connection with the TLS credentials
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
 	require.NoError(t, err)
 
 	return shipyard.NewRemoteConnectionClient(conn)
@@ -98,6 +143,69 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	_, err = net.Dial("tcp", "localhost:19000")
 	require.NoError(t, err)
 }
+
+func TestShutdownRemovesLocalListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.NoError(t, err)
+
+	// shutdown
+	for _, s := range servers {
+		s.Shutdown()
+	}
+
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.Error(t, err)
+}
+
+func TestShutdownRemovesRemoteListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.NoError(t, err)
+
+	// shutdown
+	for _, s := range servers {
+		s.Shutdown()
+	}
+
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.Error(t, err)
+}
+
 func TestExposeRemoteServiceCreatesLocalListener2(t *testing.T) {
 	c, _, _ := setupTests(t)
 
