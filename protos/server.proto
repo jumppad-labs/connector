@@ -60,7 +60,8 @@ message OpenData {
     ReadDone read_done = 8;
     Closed closed = 9;
     StatusUpdate status_update = 10;
-    google.rpc.Status error = 11;
+    NullMessage ping = 11;
+    google.rpc.Status error = 12;
   }
 }
 
