@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"os"
+	"os/signal"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -87,6 +89,16 @@ var runCmd = &cobra.Command{
 		for {
 			time.Sleep(100 * time.Millisecond)
 		}
+
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, os.Interrupt)
+		signal.Notify(c, os.Kill)
+
+		// Block until a signal is received.
+		sig := <-c
+		log.Println("Got signal:", sig)
+
+		s.Shutdown()
 
 		return nil
 	},
