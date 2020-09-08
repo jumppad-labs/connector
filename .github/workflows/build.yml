@@ -16,7 +16,7 @@ jobs:
 
       - name: Unit Test
         run: |
-          go test -v -coverprofile=coverage.txt -covermode=atomic $(go list ./...)
+          go test -v -coverprofile=coverage.txt -covermode=atomic -p 1 $(go list ./...)
 
       - name: Build
         run: |
