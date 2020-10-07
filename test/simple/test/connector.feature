@@ -14,7 +14,7 @@ Scenario: Expose multiple local servics to Remote connector
     ```
     #!/bin/bash
     echo "Expose local service to remote server"
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test1", 
         "source_port": 13000, 
@@ -22,7 +22,7 @@ Scenario: Expose multiple local servics to Remote connector
         "destination_addr": "local-service.container.shipyard.run:9094",
         "type": "local"
       }'
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test2", 
         "source_port": 13001, 
@@ -30,7 +30,7 @@ Scenario: Expose multiple local servics to Remote connector
         "destination_addr": "local-service.container.shipyard.run:9094",
         "type": "local"
       }'
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test3", 
         "source_port": 13002, 
@@ -55,7 +55,7 @@ Scenario: Expose remote service to local connector
     ```
     #!/bin/bash
     echo "Expose local service to remote server"
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test", 
         "source_port": 12000, 
@@ -78,7 +78,7 @@ Scenario: Expose local and remote services
     ```
     #!/bin/bash
     echo "Expose local service to remote server"
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test", 
         "source_port": 12000, 
@@ -86,7 +86,7 @@ Scenario: Expose local and remote services
         "destination_addr": "remote-service.container.shipyard.run:9095",
         "type": "remote"
       }'
-    curl -k https://localhost:9091/expose -d \
+    curl -vv -k https://localhost:9091/expose -d \
       '{
         "name":"test1", 
         "source_port": 13000, 
