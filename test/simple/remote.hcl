@@ -1,6 +1,6 @@
 container "remote_connector" {
   image {
-    name = "registry.shipyard.run/connector:dev"
+    name = "gcr.io/shipyard-287511/connector:latest"
   }
   
   command = [

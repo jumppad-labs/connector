@@ -14,6 +14,7 @@ Scenario: Expose multiple local servics to Remote connector
     ```
     #!/bin/bash
     sleep 10
+    docker logs local-connector.container.shipyard.run
 
     echo "Expose local service to remote server"
     curl -vv -k https://localhost:9091/expose -d \
