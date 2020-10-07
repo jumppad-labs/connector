@@ -54,4 +54,4 @@ changelog:
 dockers:
   - image_templates:
     - gcr.io/shipyard-287511/connector:{{ .Tag }}
-    - registry.shipyard.run/connector:dev
+    - gcr.io/shipyard-287511/connector:latest
