@@ -13,6 +13,8 @@ Scenario: Expose multiple local servics to Remote connector
   When I run the script
     ```
     #!/bin/bash
+    sleep 10
+
     echo "Expose local service to remote server"
     curl -vv -k https://localhost:9091/expose -d \
       '{
