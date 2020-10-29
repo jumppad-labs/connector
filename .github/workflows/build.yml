@@ -25,30 +25,37 @@ jobs:
       - name: Upload Code Coverage
         uses: codecov/codecov-action@v1
         with:
-          token: ${{ secrets.CODECOV_TOKEN }} #required
-      
+          token: ${{ secrets.CODECOV_TOKEN }}  # required
+
   functional_test:
     name: Functional Test
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v2
-      
+
       - name: Setup Go version
         uses: actions/setup-go@v2-beta
         with:
-          go-version: '1.14.4' # The Go version to download (if necessary) and use.
-    
+          go-version: '1.15.1'  # The Go version to download (if necessary) and use.
+
       - name: Install Shipyard
-        run: curl https://shipyard.run/install | bash
-      
+        run: |
+          curl https://shipyard.run/install | bash
+          echo "${GITHUB_WORKSPACE}/dist/connector_linux_amd64" >> $GITHUB_PATH
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v1
         with:
           version: v0.139.0
           args: release --rm-dist --snapshot
 
-      - name: Run tests
+      - name: Run Simple Container Tests
         run: |
           cd test/simple
+          shipyard test
+
+      - name: Run Kubernetes Tests
+        run: |
+          cd test/kubernetes
           shipyard test

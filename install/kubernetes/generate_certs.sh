@@ -25,6 +25,8 @@ connector generate-certs \
           --dns-name ":9090" \
           --dns-name ":9091" \
           --dns-name "connector" \
+					--dns-name "connector.ingress.shipyard.run:19090" \
+					--dns-name "connector.ingress.shipyard.run:19091" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
           --root-ca ./certs/root.cert \
@@ -35,6 +37,8 @@ connector generate-certs \
 connector generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
+          --dns-name ":9090" \
+          --dns-name ":9091" \
           --dns-name "localhost" \
           --dns-name "localhost:9090" \
           --dns-name "localhost:9091" \
