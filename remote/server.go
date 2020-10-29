@@ -193,4 +193,10 @@ func (s *Server) teardownService(svc *service) {
 		svc.tcpListener.Close()
 		svc.tcpListener = nil
 	}
+
+	// are there any integrations to remove
+	err := s.removeIntegration(svc.detail.Name)
+	if err != nil {
+		s.log.Error("Unable to create integration for service", "service_id", svc.detail.Name, "error", err)
+	}
 }

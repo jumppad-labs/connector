@@ -24,17 +24,9 @@ func New(log hclog.Logger) *Integration {
 
 // Register handles events when new services are exposed
 func (i *Integration) Register(id string, name string, srcPort, dstPort int) error {
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
+	clientset, err := i.createClient()
 	if err != nil {
-		i.log.Error("Unable to read kubernetes cluster config", "error", err)
-		return err
-	}
-
-	// creates the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		i.log.Error("Unable to kubernetes clientset", "error", err)
+		i.log.Error("Unable to create Kubernetes client", "error", err)
 		return err
 	}
 
@@ -76,5 +68,35 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 
 // Deregister a service in Kubernetes
 func (i *Integration) Deregister(id string) error {
+	clientset, err := i.createClient()
+	if err != nil {
+		i.log.Error("Unable to create Kubernetes client", "error", err)
+		return err
+	}
+
+	err = clientset.CoreV1().Services("shipyard").Delete(id, &metav1.DeleteOptions{})
+	if err != nil {
+		i.log.Error("Unable to remove Kubernetes service", "error", err)
+		return err
+	}
+
 	return nil
+}
+
+func (i *Integration) createClient() (*kubernetes.Clientset, error) {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		i.log.Error("Unable to read kubernetes cluster config", "error", err)
+		return nil, err
+	}
+
+	// creates the clientset
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		i.log.Error("Unable to kubernetes clientset", "error", err)
+		return nil, err
+	}
+
+	return clientset, nil
 }

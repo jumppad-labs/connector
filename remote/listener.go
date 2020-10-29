@@ -33,6 +33,15 @@ func (s *Server) createIntegration(id, name string, port int) error {
 	return nil
 }
 
+func (s *Server) removeIntegration(name string) error {
+	if s.integration != nil {
+		name = integrations.SanitizeName(name)
+		return s.integration.Deregister(name)
+	}
+
+	return nil
+}
+
 func (s *Server) handleListener(serviceID string, l net.Listener) {
 	// wrap in a go func to immediately return
 	go func(serviceID string, l net.Listener) {

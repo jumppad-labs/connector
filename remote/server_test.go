@@ -35,6 +35,7 @@ func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock)
 	// create the mock
 	mi := &integrations.Mock{}
 	mi.On("Register", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	mi.On("Deregister", mock.Anything).Return(nil)
 
 	// start the gRPC server
 	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}), certPool, &certificate, mi)
@@ -494,6 +495,48 @@ func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestDestroyRemoteServiceRemovesLocalIntegration(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19000")
+	require.NoError(t, err)
+
+	// remove the listener
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	servers[0].Integration.AssertCalled(t, "Deregister", "test-service")
+}
+
 func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 	c, _, _ := setupTests(t)
 
@@ -566,6 +609,35 @@ func TestDestroyLocalServiceRemovesRemoteListener(t *testing.T) {
 	// check the listener is not accessible
 	_, err = net.Dial("tcp", "localhost:19001")
 	require.Error(t, err)
+}
+
+func TestDestroyLocalServiceRemovesRemoteIntegration(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19001,
+			DestinationAddr:     "localhost:19000",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond)
+
+	// check the listener exists
+	_, err = net.Dial("tcp", "localhost:19001")
+	require.NoError(t, err)
+
+	// remove the listener
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	servers[1].Integration.AssertCalled(t, "Deregister", "test-service")
 }
 
 func TestExposeLocalServiceCreatesRemoteConnection(t *testing.T) {
