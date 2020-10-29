@@ -7,6 +7,10 @@ proto:
 
 build_docker:
 	goreleaser release --rm-dist --snapshot
+	docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
 build_and_test: build_docker
 	cd test/simple && shipyard test
+
+install_local:
+	go build -o ${GOPATH}/bin/connector .

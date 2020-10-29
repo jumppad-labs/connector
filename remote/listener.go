@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/google/uuid"
+	"github.com/shipyard-run/connector/integrations"
 	"github.com/shipyard-run/connector/protos/shipyard"
 )
 
@@ -21,6 +22,15 @@ func (s *Server) createListenerAndListen(serviceID string, port int) (net.Listen
 
 	s.handleListener(serviceID, l)
 	return l, nil
+}
+
+func (s *Server) createIntegration(id, name string, port int) error {
+	if s.integration != nil {
+		name = integrations.SanitizeName(name)
+		return s.integration.Register(id, name, port, port)
+	}
+
+	return nil
 }
 
 func (s *Server) handleListener(serviceID string, l net.Listener) {

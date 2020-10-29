@@ -12,13 +12,15 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/shipyard-run/connector/integrations"
 	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
-func createServer(t *testing.T, addr, name string) *Server {
+func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock) {
 	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
 	require.NoError(t, err)
 
@@ -30,8 +32,12 @@ func createServer(t *testing.T, addr, name string) *Server {
 	ok := certPool.AppendCertsFromPEM(ca)
 	require.True(t, ok)
 
+	// create the mock
+	mi := &integrations.Mock{}
+	mi.On("Register", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+
 	// start the gRPC server
-	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}), certPool, &certificate)
+	s := New(hclog.New(&hclog.LoggerOptions{Level: hclog.Trace, Name: name}), certPool, &certificate, mi)
 
 	creds := credentials.NewTLS(&tls.Config{
 		ClientAuth:   tls.RequireAndVerifyClientCert,
@@ -55,7 +61,7 @@ func createServer(t *testing.T, addr, name string) *Server {
 		lis.Close()
 	})
 
-	return s
+	return s, mi
 }
 
 func startLocalServer(t *testing.T) (string, *string) {
@@ -77,14 +83,23 @@ func startLocalServer(t *testing.T) (string, *string) {
 	return ts.Listener.Addr().String(), &bodyData
 }
 
-var servers []*Server
+type serverStruct struct {
+	Server      *Server
+	Integration *integrations.Mock
+}
+
+var servers []serverStruct
 
 func setupServers(t *testing.T) (string, *string) {
 	// local server
-	servers = []*Server{
-		createServer(t, ":1234", "server_local"),
-		createServer(t, ":1235", "server_remote_1"),
-		createServer(t, ":1236", "server_remote_2"),
+	s1, m1 := createServer(t, ":1234", "server_local")
+	s2, m2 := createServer(t, ":1235", "server_remote_1")
+	s3, m3 := createServer(t, ":1236", "server_remote_2")
+
+	servers = []serverStruct{
+		{s1, m1},
+		{s2, m2},
+		{s3, m3},
 	}
 
 	// setup the local endpoint
@@ -144,6 +159,27 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestExposeRemoteServiceCallsIntegration(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	servers[0].Integration.AssertCalled(t, "Register", mock.Anything, "test-service", 19000, 19000)
+}
+
 func TestShutdownRemovesLocalListener(t *testing.T) {
 	c, _, _ := setupTests(t)
 
@@ -168,7 +204,7 @@ func TestShutdownRemovesLocalListener(t *testing.T) {
 
 	// shutdown
 	for _, s := range servers {
-		s.Shutdown()
+		s.Server.Shutdown()
 	}
 
 	_, err = net.Dial("tcp", "localhost:19000")
@@ -199,7 +235,7 @@ func TestShutdownRemovesRemoteListener(t *testing.T) {
 
 	// shutdown
 	for _, s := range servers {
-		s.Shutdown()
+		s.Server.Shutdown()
 	}
 
 	_, err = net.Dial("tcp", "localhost:19000")
@@ -478,6 +514,27 @@ func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 	// check the listener exists
 	_, err = net.Dial("tcp", "localhost:19001")
 	require.NoError(t, err)
+}
+
+func TestExposeLocalServiceCallsRemoteIntegration(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: "localhost:1235",
+			SourcePort:          19000,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	servers[1].Integration.AssertCalled(t, "Register", mock.Anything, "test-service", 19000, 19000)
 }
 
 func TestDestroyLocalServiceRemovesRemoteListener(t *testing.T) {

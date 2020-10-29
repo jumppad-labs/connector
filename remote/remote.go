@@ -51,7 +51,25 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 				var err error
 				listener, err = s.createListenerAndListen(msg.ServiceId, int(m.Expose.Service.SourcePort))
 				if err != nil {
-					s.log.Info("Error creating listener", "service_id", msg.ServiceId, "type", m.Expose.Service.Type)
+					s.log.Error("Error creating listener", "service_id", msg.ServiceId, "type", m.Expose.Service.Type, "error", err)
+					// we need to send an error back to the connection
+					svr.Send(&shipyard.OpenData{
+						ServiceId: msg.ServiceId,
+						Message: &shipyard.OpenData_StatusUpdate{
+							StatusUpdate: &shipyard.StatusUpdate{
+								Status:  shipyard.ServiceStatus_ERROR,
+								Message: err.Error(),
+							},
+						},
+					})
+
+					continue
+				}
+
+				// create the integration such as a kubernetes service
+				err = s.createIntegration(msg.ServiceId, m.Expose.Service.Name, int(m.Expose.Service.SourcePort))
+				if err != nil {
+					s.log.Error("Error creating integration", "service_id", msg.ServiceId, "type", m.Expose.Service.Type, "error", err)
 					// we need to send an error back to the connection
 					svr.Send(&shipyard.OpenData{
 						ServiceId: msg.ServiceId,

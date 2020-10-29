@@ -1,0 +1,67 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: connector
+  namespace: shipyard
+spec:
+  selector:
+    app: connector
+  ports:
+    - port: 19090
+      targetPort: 9090
+      name: http
+    - port: 19091
+      targetPort: 9091
+      name: grpc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: connector-deployment
+  namespace: shipyard
+  labels:
+    app: connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: connector
+  template:
+    metadata:
+      labels:
+        app: connector
+    spec:
+      serviceAccountName: connector
+      containers:
+      - name: connector
+        imagePullPolicy: IfNotPresent
+        image: registry.shipyard.run/connector:dev
+        ports:
+          - name: http
+            containerPort: 9091
+          - name: grpc
+            containerPort: 9090
+        command: ["/connector", "run"]
+        args: [
+          "--log-level=debug",
+          "--root-cert-path=/etc/connector/tls/ca/tls.crt",
+          "--server-cert-path=/etc/connector/tls/leaf/tls.crt",
+          "--server-key-path=/etc/connector/tls/leaf/tls.key",
+          "--integration=kubernetes"
+        ]
+        volumeMounts:
+          - mountPath: "/etc/connector/tls/ca"
+            name: connector-tls-ca
+            readOnly: true
+          - mountPath: "/etc/connector/tls/leaf"
+            name: connector-tls-leaf
+            readOnly: true
+      volumes:
+      - name: connector-tls-ca
+        secret:
+          secretName: connector-tls-ca
+      - name: connector-tls-leaf
+        secret:
+          secretName: connector-tls-leaf

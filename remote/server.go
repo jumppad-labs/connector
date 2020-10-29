@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
+	"github.com/shipyard-run/connector/integrations"
 	"github.com/shipyard-run/connector/protos/shipyard"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -25,10 +26,12 @@ type Server struct {
 
 	ctx context.Context
 	cf  context.CancelFunc
+
+	integration integrations.Integration
 }
 
 // New creates a new gRPC remote connector server
-func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate) *Server {
+func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate, integr integrations.Integration) *Server {
 	if certPool != nil && cert != nil {
 		l.Info("Creating new Server with mTLS")
 	} else {
@@ -43,6 +46,7 @@ func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate) *Server
 		certPool,
 		cert,
 		ctx, cf,
+		integr,
 	}
 }
 

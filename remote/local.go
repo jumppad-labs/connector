@@ -98,6 +98,13 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 					return true
 				}
 
+				// create the integration such as a kubernetes service
+				err = s.createIntegration(id, svc.detail.Name, int(svc.detail.SourcePort))
+				if err != nil {
+					s.log.Error("Unable to create integration for service", "service_id", id, "error", err)
+					return true
+				}
+
 				// add the listener to the service
 				svc.tcpListener = l
 			}

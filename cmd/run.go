@@ -13,6 +13,8 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/shipyard-run/connector/http"
+	"github.com/shipyard-run/connector/integrations"
+	"github.com/shipyard-run/connector/integrations/k8s"
 	"github.com/shipyard-run/connector/protos/shipyard"
 	"github.com/shipyard-run/connector/remote"
 	"github.com/spf13/cobra"
@@ -31,8 +33,15 @@ var runCmd = &cobra.Command{
 		lo.Level = hclog.LevelFromString(logLevel)
 		l := hclog.New(&lo)
 
+		// create the integration
+		var in integrations.Integration
+		switch integration {
+		case "kubernetes":
+			in = k8s.New(l.Named("k8s_integration"))
+		}
+
 		grpcServer := grpc.NewServer()
-		s := remote.New(l.Named("grpc_server"), nil, nil)
+		s := remote.New(l.Named("grpc_server"), nil, nil, in)
 
 		// do we need to set up the server to use TLS?
 		if pathCertServer != "" && pathKeyServer != "" && pathCertRoot != "" {
@@ -60,7 +69,7 @@ var runCmd = &cobra.Command{
 			})
 
 			grpcServer = grpc.NewServer(grpc.Creds(creds))
-			s = remote.New(l.Named("grpc_server"), certPool, &certificate)
+			s = remote.New(l.Named("grpc_server"), certPool, &certificate, in)
 		}
 
 		shipyard.RegisterRemoteConnectionServer(grpcServer, s)
@@ -105,6 +114,7 @@ var pathCertRoot string
 var pathCertServer string
 var pathKeyServer string
 var logLevel string
+var integration string
 
 func init() {
 	runCmd.Flags().StringVarP(&grpcBindAddr, "grpc-bind", "", ":9090", "Bind address for the gRPC API")
@@ -113,4 +123,5 @@ func init() {
 	runCmd.Flags().StringVarP(&pathCertServer, "server-cert-path", "", "", "Path for the servers PEM encoded TLS certificate")
 	runCmd.Flags().StringVarP(&pathKeyServer, "server-key-path", "", "", "Path for the servers PEM encoded Private Key")
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
+	runCmd.Flags().StringVarP(&integration, "integration", "", "", "Integration to use [kubernetes]")
 }
