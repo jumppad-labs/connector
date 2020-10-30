@@ -31,10 +31,10 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-        name: connector
-        path: |
-          ./dist
-          ./dist/*.tar.gz
+          name: connector
+          path: |
+            ./dist
+            ./dist/*.tar.gz
 
   functional_test:
     name: Functional Test
