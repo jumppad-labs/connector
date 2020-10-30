@@ -53,7 +53,7 @@ jobs:
         run: |
           curl https://shipyard.run/install | bash
           echo "${GITHUB_WORKSPACE}/connector_linux_amd64" >> $GITHUB_PATH
-
+          chmod +x ${GITHUB_WORKSPACE}/connector_linux_amd64/connector
 
       - name: Run Manual tests
         run: |
