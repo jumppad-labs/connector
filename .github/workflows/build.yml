@@ -63,7 +63,8 @@ jobs:
               "type": "local"
             }'
           sleep 5
-          curl http://localhost:13000
+          docker ps -a
+          curl -v http://localhost:13000
 
       - name: Run Simple Container Tests
         run: |
