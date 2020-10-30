@@ -32,7 +32,7 @@ unit_test:
           --root-key /tmp/certs/root.key \
           /tmp/certs
 	
-	go test -v -coverprofile=coverage.txt -covermode=atomic -p 1 $(shell go list ./...)
+	gotestsum -- -coverprofile=coverage.txt -covermode=atomic -v -p 1 ./...
 
 proto:
 	protoc -I ./protos protos/server.proto --go_out=plugins=grpc:protos/shipyard

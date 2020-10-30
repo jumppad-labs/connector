@@ -230,6 +230,11 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 		s.readData(msg)
 	case *shipyard.OpenData_Closed:
 		svc, _ := si.services.get(msg.ServiceId)
+		if svc == nil {
+			s.log.Debug("Service does not exist", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+			return
+		}
+
 		c, ok := svc.tcpConnections.Load(msg.ConnectionId)
 		if ok {
 			s.log.Debug("Closing connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
