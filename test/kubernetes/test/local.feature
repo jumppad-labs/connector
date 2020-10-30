@@ -16,7 +16,7 @@ Scenario: Expose multiple local servics to Remote connector
     sleep 10
 
     echo "Expose local service to remote server"
-    curl -k https://localhost:9091/expose -d \
+    curl -v -k https://localhost:9091/expose -d \
       '{ "name":"localconnector",
          "source_port": 9997,
          "remote_connector_addr": "connector.ingress.shipyard.run:19090",
@@ -29,6 +29,6 @@ Scenario: Expose multiple local servics to Remote connector
   ```
   #!/bin/bash
   sleep 10
-  curl -k https://localhost:9997/health
+  curl -k -v https://localhost:9997/health
   ```
   Then I expect the exit code to be 0

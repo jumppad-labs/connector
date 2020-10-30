@@ -2,7 +2,7 @@ container "remote_connector" {
   depends_on = ["exec_local.certs"]
 
   image {
-    name = "gcr.io/shipyard-287511/connector:latest"
+    name = "registry.shipyard.run/connector:dev"
   }
   
   command = [

@@ -42,7 +42,6 @@ jobs:
   functional_test:
     name: Functional Test
     runs-on: ubuntu-latest
-    needs: build
 
     strategy:
       matrix:
@@ -54,16 +53,18 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Download the built artifacts
-        uses: actions/download-artifact@v2
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v1
         with:
-          name: connector
+          version: v0.139.0
+          args: release --rm-dist --snapshot
 
-      - name: Install Shipyard
+      - name: Install Deps
         run: |
           curl https://shipyard.run/install | bash
           echo "${GITHUB_WORKSPACE}/connector_linux_amd64" >> $GITHUB_PATH
-          chmod +x ${GITHUB_WORKSPACE}/connector_linux_amd64/connector
+          chmod +x ${GITHUB_WORKSPACE}/dist/connector_linux_amd64/connector
+          docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
       - name: ${{ matrix.folder }}
         run: |
