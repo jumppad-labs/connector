@@ -22,6 +22,8 @@ connector generate-certs \
 					--dns-name "*.container.shipyard.run:9091" \
 					--dns-name "*.container.shipyard.run:9092" \
 					--dns-name "*.container.shipyard.run:9093" \
+					--dns-name "local-connector.container.shipyard.run:9090" \
+					--dns-name "local-connector.container.shipyard.run:9091" \
           --root-ca ./certs/root.cert \
           --root-key ./certs/root.key \
           ./certs/local
@@ -41,6 +43,8 @@ connector generate-certs \
 					--dns-name "*.container.shipyard.run:9091" \
 					--dns-name "*.container.shipyard.run:9092" \
 					--dns-name "*.container.shipyard.run:9093" \
+					--dns-name "remote-connector.container.shipyard.run:9092" \
+					--dns-name "remote-connector.container.shipyard.run:9093" \
           --root-ca ./certs/root.cert \
           --root-key ./certs/root.key \
           ./certs/remote
