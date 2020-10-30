@@ -21,12 +21,12 @@ import (
 )
 
 func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock) {
-	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	certificate, err := tls.LoadX509KeyPair("/tmp/certs/leaf.cert", "/tmp/certs/leaf.key")
 	require.NoError(t, err)
 
 	// Create a certificate pool from the certificate authority
 	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	ca, err := ioutil.ReadFile("/tmp/certs/root.cert")
 	require.NoError(t, err)
 
 	ok := certPool.AppendCertsFromPEM(ca)
@@ -108,12 +108,12 @@ func setupServers(t *testing.T) (string, *string) {
 }
 
 func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
-	certificate, err := tls.LoadX509KeyPair("../test/simple/certs/leaf.cert", "../test/simple/certs/leaf.key")
+	certificate, err := tls.LoadX509KeyPair("/tmp/certs/leaf.cert", "/tmp/certs/leaf.key")
 	require.NoError(t, err)
 
 	// Create a certificate pool from the certificate authority
 	certPool := x509.NewCertPool()
-	ca, err := ioutil.ReadFile("../test/simple/certs/root.cert")
+	ca, err := ioutil.ReadFile("/tmp/certs/root.cert")
 	require.NoError(t, err)
 
 	ok := certPool.AppendCertsFromPEM(ca)

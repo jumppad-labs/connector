@@ -10,14 +10,15 @@ connector generate-certs --ca ./certs
 connector generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
-          --dns-name "${K8S_PUBLIC_ADDRESS}" \
-          --dns-name "${K8S_PUBLIC_ADDRESS_API}" \
-          --dns-name "${K8S_PUBLIC_ADDRESS_GRPC}" \
           --dns-name ":9090" \
           --dns-name ":9091" \
+          --dns-name ":9092" \
+          --dns-name ":9093" \
           --dns-name "connector" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
+          --dns-name "connector:9092" \
+          --dns-name "connector:9093" \
 					--dns-name "*.container.shipyard.run:9090" \
 					--dns-name "*.container.shipyard.run:9091" \
 					--dns-name "*.container.shipyard.run:9092" \
@@ -31,14 +32,15 @@ connector generate-certs \
 connector generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
-          --dns-name "${K8S_PUBLIC_ADDRESS}" \
-          --dns-name "${K8S_PUBLIC_ADDRESS_API}" \
-          --dns-name "${K8S_PUBLIC_ADDRESS_GRPC}" \
           --dns-name ":9090" \
           --dns-name ":9091" \
+          --dns-name ":9092" \
+          --dns-name ":9093" \
           --dns-name "connector" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
+          --dns-name "connector:9092" \
+          --dns-name "connector:9093" \
 					--dns-name "*.container.shipyard.run:9090" \
 					--dns-name "*.container.shipyard.run:9091" \
 					--dns-name "*.container.shipyard.run:9092" \

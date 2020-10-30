@@ -2,6 +2,38 @@ setup_proto:
 	go get -u google.golang.org/grpc
 	go get -u github.com/golang/protobuf/protoc-gen-go
 
+unit_test:
+	rm -rf /tmp/certs	
+	mkdir -p /tmp/certs
+	go run main.go generate-certs --ca /tmp/certs
+	
+	# Generate the leaf certs for the k8s connector
+	go run main.go generate-certs \
+          --leaf \
+          --ip-address 127.0.0.1 \
+          --dns-name ":9090" \
+          --dns-name ":9091" \
+          --dns-name ":9092" \
+          --dns-name ":9093" \
+          --dns-name "connector" \
+          --dns-name "localhost" \
+					--dns-name "localhost:1234" \
+					--dns-name "localhost:1235" \
+					--dns-name "localhost:1236" \
+          --dns-name "connector:9090" \
+          --dns-name "connector:9091" \
+					--dns-name "*.container.shipyard.run:9090" \
+					--dns-name "*.container.shipyard.run:9091" \
+					--dns-name "*.container.shipyard.run:9092" \
+					--dns-name "*.container.shipyard.run:9093" \
+					--dns-name "local-connector.container.shipyard.run:9090" \
+					--dns-name "local-connector.container.shipyard.run:9091" \
+          --root-ca /tmp/certs/root.cert \
+          --root-key /tmp/certs/root.key \
+          /tmp/certs
+	
+	go test -v -coverprofile=coverage.txt -covermode=atomic -p 1 $(shell go list ./...)
+
 proto:
 	protoc -I ./protos protos/server.proto --go_out=plugins=grpc:protos/shipyard
 
