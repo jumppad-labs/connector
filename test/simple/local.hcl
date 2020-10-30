@@ -1,5 +1,7 @@
 container "local_connector" {
-  image {
+  depends_on = ["exec_local.certs"]
+  
+image {
     name = "gcr.io/shipyard-287511/connector:latest"
   }
 
@@ -7,9 +9,10 @@ container "local_connector" {
     "run",
     "--grpc-bind=:9090",
     "--http-bind=:9091",
+    "--log-level=debug",
     "--root-cert-path=/certs/root.cert",
-    "--server-cert-path=/certs/leaf.cert",
-    "--server-key-path=/certs/leaf.key",
+    "--server-cert-path=/certs/local/leaf.cert",
+    "--server-key-path=/certs/local/leaf.key",
   ]
   
   port_range {

@@ -1,4 +1,6 @@
 container "remote_connector" {
+  depends_on = ["exec_local.certs"]
+
   image {
     name = "gcr.io/shipyard-287511/connector:latest"
   }
@@ -9,8 +11,8 @@ container "remote_connector" {
     "--http-bind=:9093",
     "--log-level=debug",
     "--root-cert-path=/certs/root.cert",
-    "--server-cert-path=/certs/leaf.cert",
-    "--server-key-path=/certs/leaf.key",
+    "--server-cert-path=/certs/remote/leaf.cert",
+    "--server-key-path=/certs/remote/leaf.key",
   ]
 
   port_range {
