@@ -62,7 +62,7 @@ jobs:
       - name: Install Deps
         run: |
           curl https://shipyard.run/install | bash
-          echo "${GITHUB_WORKSPACE}/connector_linux_amd64" >> $GITHUB_PATH
+          echo "${GITHUB_WORKSPACE}/dist/connector_linux_amd64" >> $GITHUB_PATH
           chmod +x ${GITHUB_WORKSPACE}/dist/connector_linux_amd64/connector
           docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
