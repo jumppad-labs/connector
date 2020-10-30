@@ -44,6 +44,13 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
 
+    strategy:
+      matrix:
+        folder: [
+          './test/simple',
+          './test/kubernetes',
+        ]
+
     steps:
       - uses: actions/checkout@v2
 
@@ -58,30 +65,7 @@ jobs:
           echo "${GITHUB_WORKSPACE}/connector_linux_amd64" >> $GITHUB_PATH
           chmod +x ${GITHUB_WORKSPACE}/connector_linux_amd64/connector
 
-      - name: Run Manual tests
+      - name: ${{ matrix.folder }}
         run: |
-          cd test/simple
-          shipyard run
-          curl -k https://localhost:9091/expose -d \
-            '{
-              "name":"test1",
-              "source_port": 13000,
-              "remote_connector_addr": "remote-connector.container.shipyard.run:9092",
-              "destination_addr": "local-service.container.shipyard.run:9094",
-              "type": "local"
-            }'
-          sleep 5
-          docker ps -a
-          docker logs local-connector.container.shipyard.run
-          docker logs remote-connector.container.shipyard.run
-          curl -v http://localhost:13000
-
-      - name: Run Simple Container Tests
-        run: |
-          cd test/simple
-          shipyard test
-
-      - name: Run Kubernetes Tests
-        run: |
-          cd test/kubernetes
+          cd ${{ matrix.folder }}
           shipyard test
