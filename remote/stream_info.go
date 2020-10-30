@@ -85,7 +85,9 @@ func (si *streamInfo) closeGRPCConn() {
 	si.updateMutex.Lock()
 	defer si.updateMutex.Unlock()
 
-	si.grpcConn.Close()
+	if si.grpcConn != nil {
+		si.grpcConn.Close()
+	}
 }
 
 func (si *streamInfo) setGRPCConn(g *grpcConn) {

@@ -17,3 +17,4 @@ dist
 #
 certs/
 coverage.txt
+gotestsum

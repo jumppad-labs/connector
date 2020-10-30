@@ -5,9 +5,9 @@ go 1.15
 require (
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/go-playground/validator/v10 v10.3.0
-	github.com/golang/protobuf v1.4.2
+	github.com/golang/protobuf v1.4.3
 	github.com/google/go-cmp v0.5.2 // indirect
-	github.com/google/uuid v1.1.1
+	github.com/google/uuid v1.1.2
 	github.com/gorilla/mux v1.7.4
 	github.com/hashicorp/go-hclog v0.12.1
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
@@ -17,12 +17,13 @@ require (
 	github.com/spf13/cobra v0.0.3
 	github.com/stretchr/objx v0.1.1 // indirect
 	github.com/stretchr/testify v1.5.1
-	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
-	golang.org/x/sys v0.0.0-20201009025420-dfb3f7c4e634 // indirect
+	golang.org/x/net v0.0.0-20201029221708-28c70e62bb1d // indirect
+	golang.org/x/sys v0.0.0-20201029080932-201ba4db2418 // indirect
+	golang.org/x/text v0.3.4 // indirect
 	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
-	google.golang.org/genproto v0.0.0-20200526211855-cb27e3aa2013
-	google.golang.org/grpc v1.28.0
-	google.golang.org/protobuf v1.24.0
+	google.golang.org/genproto v0.0.0-20201029200359-8ce4113da6f7
+	google.golang.org/grpc v1.33.1
+	google.golang.org/protobuf v1.25.0
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect
 	gopkg.in/yaml.v2 v2.3.0 // indirect
 	gotest.tools v2.2.0+incompatible

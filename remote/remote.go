@@ -180,6 +180,4 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 			svc.tcpConnections.Delete(msg.ConnectionId)
 		}
 	}
-
-	return nil
 }

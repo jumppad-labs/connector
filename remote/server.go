@@ -145,24 +145,26 @@ func (s *Server) Shutdown() {
 	s.log.Info("Shutting down")
 	s.cf() // cancel the running context
 
-	defer func() {
-		if r := recover(); r != nil {
-			s.log.Error("Error when shutting down service", "error", r)
-		}
-	}()
+	//defer func() {
+	//	if r := recover(); r != nil {
+	//		s.log.Error("Error when shutting down service", "error", r)
+	//	}
+	//}()
 
 	// close all listeners
 	s.log.Info("Closing all TCPListeners and Connections")
 	for _, t := range s.streams {
-		s.teardownConnection(t)
-		t.closeGRPCConn()
+		if t != nil {
+			s.teardownConnection(t)
+			t.closeGRPCConn()
+		}
 	}
 }
 
 var connectionBackoff = 10 * time.Second
 
-func (s *Server) teardownConnection(conn *streamInfo) {
-	conn.services.iterate(func(id string, svc *service) bool {
+func (s *Server) teardownConnection(si *streamInfo) {
+	si.services.iterate(func(id string, svc *service) bool {
 		// close any open connections
 		s.teardownService(svc)
 		svc.detail.Status = shipyard.ServiceStatus_PENDING
