@@ -12,6 +12,7 @@ jobs:
 
       - name: Get dependencies
         run: |
+          make setup
           go get -v -t ./...
 
       - name: Unit Test
