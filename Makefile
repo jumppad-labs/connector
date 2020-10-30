@@ -1,6 +1,7 @@
-setup_proto:
+setup:
 	go get -u google.golang.org/grpc
 	go get -u github.com/golang/protobuf/protoc-gen-go
+	go get gotest.tools/gotestsum
 
 unit_test:
 	rm -rf /tmp/certs	
