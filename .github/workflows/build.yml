@@ -54,7 +54,7 @@ jobs:
         run: |
           cd test/simple
           shipyard run
-          curl -vv -k https://localhost:9091/expose -d \
+          curl -k https://localhost:9091/expose -d \
             '{
               "name":"test1",
               "source_port": 13000,
