@@ -64,6 +64,8 @@ jobs:
             }'
           sleep 5
           docker ps -a
+          docker logs local-connector.container.shipyard.run
+          docker logs remote-connector.container.shipyard.run
           curl -v http://localhost:13000
 
       - name: Run Simple Container Tests
