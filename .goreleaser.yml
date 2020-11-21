@@ -24,7 +24,7 @@ builds:
     - -s -w
 
   hooks:
-    post: ./upx.sh
+    post: ./upx.sh {{ .Path }}
 
   goos:
     - linux
@@ -35,8 +35,10 @@ builds:
     - amd64
     - arm
     - arm64
+
   goarm:
     - 7
+    - 6
 
 archives:
 - replacements:
