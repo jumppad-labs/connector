@@ -4,6 +4,7 @@ on:
   push:
     tags:
        - 'v*'
+       - 'dev'
 
 jobs:
   goreleaser:
@@ -15,15 +16,15 @@ jobs:
       -
         name: Unshallow
         run: git fetch --prune --unshallow
-      
+
       # Setup gcloud CLI
-      - 
+      -
         uses: GoogleCloudPlatform/github-actions/setup-gcloud@master
         with:
           version: '270.0.0'
           service_account_key: ${{ secrets.GCP_KEY }}
 
-         # Configure docker to use the gcloud command-line tool as a credential helper
+      # Configure docker to use the gcloud command-line tool as a credential helper
       - run: |
           # Set up docker to authenticate
           # via gcloud command-line tool.
@@ -43,3 +44,20 @@ jobs:
           args: release --rm-dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      -
+        name: Setup Docker Multi-Arch Builder
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker buildx create --name multi
+          docker buildx use multi
+          docker buildx inspect --bootstrap
+
+      -
+        name: Build and push
+        run: |
+          docker buildx build --platform linux/arm/v7,linux/amd64 \
+            -t gcr.io/shipyard-287511/connector:multi \
+            -f ./Dockerfile \
+            ./dist \
+            --push

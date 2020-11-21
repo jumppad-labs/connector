@@ -20,6 +20,12 @@ builds:
   flags:
     - -tags={.Tag}
 
+  ldflags:
+    - -s -w
+
+  hooks:
+    post: ./upx.sh
+
   goos:
     - linux
     - darwin
@@ -52,8 +58,3 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
-dockers:
-  - image_templates:
-    - gcr.io/shipyard-287511/connector:{{ .Tag }}
-    - gcr.io/shipyard-287511/connector:latest
-    - gcr.io/shipyard-287511/connector:dev
