@@ -2,6 +2,7 @@
 
 name: Build
 on: [push]
+
 jobs:
   build:
     env:
@@ -57,6 +58,7 @@ jobs:
       - uses: actions/download-artifact@v2
         with:
           name: connector
+          path: dist
 
       - name: Setup Docker Multi-Arch Builder
         run: |
