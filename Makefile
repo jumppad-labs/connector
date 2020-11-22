@@ -41,12 +41,10 @@ clean_multiarch:
 
 build_docker: clean_multiarch snapshot setup_multiarch
 	docker buildx build --platform linux/amd64 \
-		-t gcr.io/shipyard-287511/connector:dev \
+		-t connector:dev \
 		-f ./Dockerfile \
 		./dist \
 		--load
-	
-	docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
 push_multi_docker:
 	docker buildx build --platform linux/arm/v7,linux/amd64 \
@@ -56,4 +54,5 @@ push_multi_docker:
 		--push
 
 build_and_test: build_docker
-	cd test/simple && shipyard test
+	cd test/simple && shipyard test --var connector_image=connector:dev
+	cd test/kubernetes && shipyard test --var connector_image=connector:dev

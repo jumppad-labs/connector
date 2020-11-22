@@ -9,3 +9,4 @@ tar -xf upx-3.96-amd64_linux.tar.xz
 
 rm -rf upx-3.96-amd64_linux
 rm -rf upx-3.96-amd64_linux.tar.xz
+rm -rf upx-3.96-amd64_linux.tar.xz.*

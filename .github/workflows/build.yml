@@ -70,7 +70,7 @@ jobs:
       - name: Build and load into local Docker
         run: |
           docker buildx build --platform linux/amd64 \
-          -t gcr.io/shipyard-287511/connector:dev \
+          -t connector:dev \
             -f ./Dockerfile \
             ./dist \
             --load
@@ -80,9 +80,8 @@ jobs:
           curl https://shipyard.run/install | bash
           echo "${GITHUB_WORKSPACE}/dist/connector_linux_amd64" >> $GITHUB_PATH
           chmod +x ${GITHUB_WORKSPACE}/dist/connector_linux_amd64/connector
-          docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
       - name: ${{ matrix.folder }}
         run: |
           cd ${{ matrix.folder }}
-          shipyard test
+          shipyard test --var connector_image=connector:dev
