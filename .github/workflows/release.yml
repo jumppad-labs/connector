@@ -57,7 +57,7 @@ jobs:
         name: Build and push
         run: |
           docker buildx build --platform linux/arm/v7,linux/amd64 \
-            -t gcr.io/shipyard-287511/connector:multi \
+            -t gcr.io/shipyard-287511/connector:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./dist \
             --push
