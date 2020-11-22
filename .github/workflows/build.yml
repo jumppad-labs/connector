@@ -2,6 +2,7 @@
 
 name: Build
 on: [push]
+
 jobs:
   build:
     env:
@@ -24,7 +25,7 @@ jobs:
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v1
         with:
-          version: v0.139.0
+          version: v0.147.2
           args: release --rm-dist --snapshot
 
       - name: Upload Code Coverage
@@ -42,6 +43,7 @@ jobs:
   functional_test:
     name: Functional Test
     runs-on: ubuntu-latest
+    needs: build
 
     strategy:
       matrix:
@@ -53,20 +55,33 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v1
+      - uses: actions/download-artifact@v2
         with:
-          version: v0.139.0
-          args: release --rm-dist --snapshot
+          name: connector
+          path: dist
+
+      - name: Setup Docker Multi-Arch Builder
+        run: |
+          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+          docker buildx create --name multi
+          docker buildx use multi
+          docker buildx inspect --bootstrap
+
+      - name: Build and load into local Docker
+        run: |
+          docker buildx build --platform linux/amd64 \
+          -t connector:dev \
+            -f ./Dockerfile \
+            ./dist \
+            --load
 
       - name: Install Deps
         run: |
           curl https://shipyard.run/install | bash
           echo "${GITHUB_WORKSPACE}/dist/connector_linux_amd64" >> $GITHUB_PATH
           chmod +x ${GITHUB_WORKSPACE}/dist/connector_linux_amd64/connector
-          docker tag gcr.io/shipyard-287511/connector:dev registry.shipyard.run/connector:dev
 
       - name: ${{ matrix.folder }}
         run: |
           cd ${{ matrix.folder }}
-          shipyard test
+          shipyard test --var connector_image=connector:dev

@@ -20,6 +20,12 @@ builds:
   flags:
     - -tags={.Tag}
 
+  ldflags:
+    - -s -w
+
+  hooks:
+    post: ./upx.sh {{ .Path }}
+
   goos:
     - linux
     - darwin
@@ -29,8 +35,10 @@ builds:
     - amd64
     - arm
     - arm64
+
   goarm:
     - 7
+    - 6
 
 archives:
 - replacements:
@@ -52,8 +60,3 @@ changelog:
     exclude:
     - '^docs:'
     - '^test:'
-dockers:
-  - image_templates:
-    - gcr.io/shipyard-287511/connector:{{ .Tag }}
-    - gcr.io/shipyard-287511/connector:latest
-    - gcr.io/shipyard-287511/connector:dev
