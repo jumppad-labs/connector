@@ -185,7 +185,7 @@ func (s *Server) teardownService(svc *service) {
 		conn := v.(net.Conn)
 		conn.Close()
 
-		svc.tcpConnections.Delete(k)
+		svc.removeTCPConnection(k.(string))
 
 		return true
 	})

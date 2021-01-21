@@ -82,6 +82,23 @@ type service struct {
 	tcpConnections sync.Map
 }
 
+func (s *service) getTCPConnection(key string) (*bufferedConn, bool) {
+	con, ok := s.tcpConnections.Load(key)
+	if !ok {
+		return nil, false
+	}
+
+	return con.(*bufferedConn), true
+}
+
+func (s *service) setTCPConnection(key string, conn *bufferedConn) {
+	s.tcpConnections.Store(key, conn)
+}
+
+func (s *service) removeTCPConnection(key string) {
+	s.tcpConnections.Delete(key)
+}
+
 func newService() *service {
 	return &service{tcpConnections: sync.Map{}}
 }

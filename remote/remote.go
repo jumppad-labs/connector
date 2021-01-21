@@ -128,7 +128,7 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 			}
 
 			// get the connection
-			tcpConn, ok := svc.tcpConnections.Load(msg.ConnectionId)
+			tcpConn, ok := svc.getTCPConnection(msg.ConnectionId)
 
 			// no connection exists, if this is a remote service try to establish a new connection to the upstream service
 			// otherwise ignore as the connection should have been created by the local listener
@@ -140,7 +140,7 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 
 				// open a new connection
 				s.log.Debug("Local connection does not exist, creating", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.detail.DestinationAddr)
-				tcpConn, err = net.Dial("tcp", svc.detail.DestinationAddr)
+				newConn, err := net.Dial("tcp", svc.detail.DestinationAddr)
 				if err != nil {
 					s.log.Error("Unable to create local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
 					svr.Send(
@@ -153,11 +153,12 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 					continue
 				}
 
-				svc.tcpConnections.Store(msg.ConnectionId, tcpConn)
+				tcpConn = newBufferedConn(newConn)
+				svc.setTCPConnection(msg.ConnectionId, tcpConn)
 			}
 
 			s.log.Debug("Writing data to connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
-			tcpConn.(net.Conn).Write(m.Data.Data)
+			tcpConn.Write(m.Data.Data)
 
 		case *shipyard.OpenData_WriteDone:
 			// all data has been received, read from the local connection

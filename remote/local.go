@@ -201,7 +201,7 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 		// if we get data send it to the local service instance
 		// do we have a local connection, if not create one
 		svc, _ := si.services.get(msg.ServiceId)
-		c, ok := svc.tcpConnections.Load(msg.ConnectionId)
+		c, ok := svc.getTCPConnection(msg.ConnectionId)
 		if !ok {
 			// is this an message reply to a local listener, if there is no connection
 			// assume it has gone away so ignore
@@ -212,18 +212,19 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 
 			// otherwise create a new upstream connection
 			var err error
-			c, err = net.Dial("tcp", svc.detail.DestinationAddr)
+			newCon, err := net.Dial("tcp", svc.detail.DestinationAddr)
 			if err != nil {
 				s.log.Error("Unable to create connection to remote", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.detail.DestinationAddr)
 				return
 			}
 
 			// set the connection
-			svc.tcpConnections.Store(msg.ConnectionId, c)
+			c = newBufferedConn(newCon)
+			svc.setTCPConnection(msg.ConnectionId, c)
 		}
 
 		s.log.Debug("Writing data to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
-		c.(net.Conn).Write(m.Data.Data)
+		c.Write(m.Data.Data)
 		s.log.Debug("Data written to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 
 	case *shipyard.OpenData_WriteDone:
@@ -238,12 +239,12 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			return
 		}
 
-		c, ok := svc.tcpConnections.Load(msg.ConnectionId)
+		c, ok := svc.getTCPConnection(msg.ConnectionId)
 		if ok {
 			s.log.Debug("Closing connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 			// we have a connection close it
-			c.(net.Conn).Close()
-			svc.tcpConnections.Delete(msg.ConnectionId)
+			c.Close()
+			svc.removeTCPConnection(msg.ConnectionId)
 		}
 	case *shipyard.OpenData_StatusUpdate:
 		s.log.Debug("Received status message", "service_id", msg.ServiceId, "status", m.StatusUpdate.Status)

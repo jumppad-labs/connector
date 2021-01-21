@@ -54,12 +54,12 @@ func (s *Server) handleListener(serviceID string, l net.Listener) {
 			}
 
 			s.log.Debug("Handle new connection", "service_id", serviceID)
-			s.handleConnection(serviceID, conn)
+			s.handleConnection(serviceID, newBufferedConn(conn))
 		}
 	}(serviceID, l)
 }
 
-func (s *Server) handleConnection(serviceID string, conn net.Conn) {
+func (s *Server) handleConnection(serviceID string, conn *bufferedConn) {
 	// generate a unique id for the connection
 	connID := uuid.New().String()
 
@@ -134,7 +134,7 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 	str, _ := s.streams.findByServiceID(msg.ServiceId)
 	svc, ok := str.services.get(msg.ServiceId)
 
-	con, ok := svc.tcpConnections.Load(msg.ConnectionId)
+	con, ok := svc.getTCPConnection(msg.ConnectionId)
 	if !ok {
 		s.log.Error("No connection to read from", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 		return
@@ -146,7 +146,7 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 		maxBuffer := 4096
 		data := make([]byte, maxBuffer)
 
-		i, err := con.(net.Conn).Read(data) // read 4k of data
+		i, err := con.Read(data) // read 4k of data
 		s.log.Debug("Data read from local connection", "data_len", i, "err", err, "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 
 		// if we had a read error tell the server
@@ -166,7 +166,7 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 			}
 
 			// cleanup
-			svc.tcpConnections.Delete(msg.ConnectionId)
+			svc.removeTCPConnection(msg.ConnectionId)
 			break
 		}
 
@@ -184,12 +184,11 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 		if i < maxBuffer {
 			s.log.Debug("No more data to send to remote connection", "read", i, "buffer", maxBuffer, "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
 			// check if remote has closed the connection
-			one := make([]byte, 1)
-			con.(net.Conn).SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-			if _, err := con.(net.Conn).Read(one); err == io.EOF {
+			con.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+			if _, err := con.Peek(1); err == io.EOF {
 				s.log.Debug("Detected connection closed", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
-				con.(net.Conn).Close()
-				svc.tcpConnections.Delete(msg.ConnectionId)
+				con.Close()
+				svc.removeTCPConnection(msg.ConnectionId)
 
 				str.grpcConn.Send(
 					&shipyard.OpenData{
@@ -201,7 +200,7 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 
 			} else {
 				s.log.Debug("Data sent but connection still open", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
-				con.(net.Conn).SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+				con.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
 			}
 			//t := shipyard.MessageType_READ_DONE
 			//s.closeConnection(msg, &t, sc)
