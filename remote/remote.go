@@ -143,6 +143,13 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 				tcpConn, err = net.Dial("tcp", svc.detail.DestinationAddr)
 				if err != nil {
 					s.log.Error("Unable to create local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
+					svr.Send(
+						&shipyard.OpenData{
+							ServiceId:    msg.ServiceId,
+							ConnectionId: msg.ConnectionId,
+							Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+						},
+					)
 					continue
 				}
 

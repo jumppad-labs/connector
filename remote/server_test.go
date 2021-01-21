@@ -770,6 +770,33 @@ func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
 }
 
+func TestMessageToNonExistantEndpointRetrurnsError(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	p := int32(rand.Intn(10000) + 30000)
+	p2 := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test 1",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     fmt.Sprintf("localhost:%d", p2),
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// wait while to ensure all setup
+	time.Sleep(100 * time.Millisecond)
+
+	// call the remote endpoint, should return an error
+	_, err = http.DefaultClient.Get(fmt.Sprintf("http://localhost:%d", p))
+	require.Error(t, err)
+}
+
 func TestListServices(t *testing.T) {
 	c, tsAddr, _ := setupTests(t)
 
