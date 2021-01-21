@@ -222,10 +222,12 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			svc.tcpConnections.Store(msg.ConnectionId, c)
 		}
 
-		s.log.Debug("Writing data to local", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+		s.log.Debug("Writing data to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 		c.(net.Conn).Write(m.Data.Data)
+		s.log.Debug("Data written to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 
 	case *shipyard.OpenData_WriteDone:
+		s.log.Trace("Received client message", "service_id", msg.ServiceId, "msg", msg)
 		// all writing has been completed for the connection switch to read mode
 		s.readData(msg)
 	case *shipyard.OpenData_Closed:

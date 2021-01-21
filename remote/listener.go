@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/shipyard-run/connector/integrations"
@@ -140,12 +141,13 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 	}
 
 	for {
-		s.log.Debug("Reading data from local server", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+		s.log.Debug("Reading data from local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 
 		maxBuffer := 4096
 		data := make([]byte, maxBuffer)
 
 		i, err := con.(net.Conn).Read(data) // read 4k of data
+		s.log.Debug("Data read from local connection", "data_len", i, "err", err, "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 
 		// if we had a read error tell the server
 		if i == 0 || err != nil {
@@ -180,6 +182,27 @@ func (s *Server) readData(msg *shipyard.OpenData) {
 
 		// all read close the connection
 		if i < maxBuffer {
+			s.log.Debug("No more data to send to remote connection", "read", i, "buffer", maxBuffer, "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+			// check if remote has closed the connection
+			one := make([]byte, 1)
+			con.(net.Conn).SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+			if _, err := con.(net.Conn).Read(one); err == io.EOF {
+				s.log.Debug("Detected connection closed", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
+				con.(net.Conn).Close()
+				svc.tcpConnections.Delete(msg.ConnectionId)
+
+				str.grpcConn.Send(
+					&shipyard.OpenData{
+						ServiceId:    msg.ServiceId,
+						ConnectionId: msg.ConnectionId,
+						Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+					},
+				)
+
+			} else {
+				s.log.Debug("Data sent but connection still open", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "error", err)
+				con.(net.Conn).SetReadDeadline(time.Now().Add(10 * time.Millisecond))
+			}
 			//t := shipyard.MessageType_READ_DONE
 			//s.closeConnection(msg, &t, sc)
 			break
