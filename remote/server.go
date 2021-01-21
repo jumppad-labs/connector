@@ -33,7 +33,7 @@ type Server struct {
 // New creates a new gRPC remote connector server
 func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate, integr integrations.Integration) *Server {
 	if certPool != nil && cert != nil {
-		l.Info("Creating new Server with mTLS")
+		l.Info("Creating new Server with mTLS, baals")
 	} else {
 		l.Info("Creating new Server")
 	}
@@ -84,6 +84,7 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	}
 
 	// add the service to the connection
+	svc.detail.Id = id
 	si.services.add(id, svc)
 
 	// establish a connection to the remote endpoint and setup listeners

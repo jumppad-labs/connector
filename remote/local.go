@@ -231,6 +231,7 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 		// all writing has been completed for the connection switch to read mode
 		s.readData(msg)
 	case *shipyard.OpenData_Closed:
+		s.log.Debug("Received closed message", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
 		svc, _ := si.services.get(msg.ServiceId)
 		if svc == nil {
 			s.log.Debug("Service does not exist", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)

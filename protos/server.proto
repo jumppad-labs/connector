@@ -98,10 +98,11 @@ message StatusUpdate {
 }
 
 message Service {
-  string name = 1; // name of the service
-  string remoteConnectorAddr = 2; // address of the remote component for the service
-  string destinationAddr = 3; // address of the service being exposed
-  int32 sourcePort = 4; // local port to expose on
+  string id = 1; // id for the service
+  string name = 2; // name of the service
+  string remoteConnectorAddr = 3; // address of the remote component for the service
+  string destinationAddr = 4; // address of the service being exposed
+  int32 sourcePort = 5; // local port to expose on
   ServiceType type = 6; // is the service running on this machine or the remote machine
   ServiceStatus status = 7;
 }
