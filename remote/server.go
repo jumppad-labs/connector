@@ -16,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const MessageSize = 4096 // 4k data payload
+
 type Server struct {
 	log hclog.Logger
 	// Collection which listeners and tcp connections for a Server stream
@@ -50,7 +52,7 @@ func New(l hclog.Logger, certPool *x509.CertPool, cert *tls.Certificate, integr 
 	}
 }
 
-// OpenStream is a called by the remote server to open a bidirectional stream between two
+// OpenStream is a called by a remote server to open a bidirectional stream between two
 // Connectors
 func (s *Server) OpenStream(svr shipyard.RemoteConnection_OpenStreamServer) error {
 	return s.newRemoteStream(svr)
@@ -202,4 +204,22 @@ func (s *Server) teardownService(svc *service) {
 	if err != nil {
 		s.log.Error("Unable to create integration for service", "service_id", svc.detail.Name, "error", err)
 	}
+}
+
+func (s *Server) createIntegration(id, name string, port int) error {
+	if s.integration != nil {
+		name = integrations.SanitizeName(name)
+		return s.integration.Register(id, name, port, port)
+	}
+
+	return nil
+}
+
+func (s *Server) removeIntegration(name string) error {
+	if s.integration != nil {
+		name = integrations.SanitizeName(name)
+		return s.integration.Deregister(name)
+	}
+
+	return nil
 }

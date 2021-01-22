@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"io"
 	"net"
 	"time"
 
@@ -18,7 +19,11 @@ import (
 func (s *Server) getClient(addr string) (shipyard.RemoteConnectionClient, error) {
 	// are we using TLS?
 	if s.certPool != nil && s.cert != nil {
-		s.log.Debug("Creating TLS connection", "addr", addr)
+		s.log.Debug(
+			"server",
+			"message", "Creating TLS client",
+			"addr", addr)
+
 		creds := credentials.NewTLS(&tls.Config{
 			ServerName:   addr,
 			Certificates: []tls.Certificate{*s.cert},
@@ -28,11 +33,18 @@ func (s *Server) getClient(addr string) (shipyard.RemoteConnectionClient, error)
 		// Create a connection with the TLS credentials
 		conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
 		if err != nil {
-			return nil, fmt.Errorf("could not dial %s: %s", addr, err)
+			return nil, fmt.Errorf(
+				"server",
+				"message", "Unable to dial %s: %s", addr, err)
 		}
 
 		return shipyard.NewRemoteConnectionClient(conn), nil
 	}
+
+	s.log.Debug(
+		"server",
+		"message", "Creating Insecure client",
+		"addr", addr)
 
 	conn, err := grpc.Dial(addr, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithDefaultCallOptions())
 	if err != nil {
@@ -46,7 +58,11 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 	// if is possible that this method gets called multiple times
 	// ensure there is only one operation in process at once
 	if conn.isConnecting() {
-		s.log.Info("Connection attempt already in process", "addr", conn.addr)
+		s.log.Info(
+			"server_local",
+			"message", "Connection attempt already in process",
+			"addr", conn.addr)
+
 		return nil
 	}
 
@@ -60,10 +76,17 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 		// if we do not have a connection create one
 		if conn.grpcConn == nil || conn.grpcConn.Closed {
 			// connect to the service
-			s.log.Info("Connecting to server", "addr", conn.addr)
+			s.log.Info(
+				"sever_local",
+				"message", "Connecting to remote server",
+				"addr", conn.addr)
+
 			gc, err := s.openRemoteConnection(conn.addr)
 			if err != nil {
-				s.log.Error("Unable to open remote connection", "error", err)
+				s.log.Error(
+					"server_local",
+					"message",
+					"Unable to open remote connection", "error", err)
 
 				// back off and try again
 				time.Sleep(connectionBackoff)
@@ -74,7 +97,11 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			conn.setGRPCConn(gc)
 
 			// send a ping message
-			s.log.Debug("Ping connection", "addr", conn.addr)
+			s.log.Debug(
+				"server_local",
+				"message", "Remote connetion estabilished, ping connection",
+				"addr", conn.addr)
+
 			conn.grpcConn.Send(&shipyard.OpenData{Message: &shipyard.OpenData_Ping{Ping: &shipyard.NullMessage{}}})
 
 			// handle messages for this stream
@@ -94,14 +121,22 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 				// open the listener locally
 				l, err := s.createListenerAndListen(id, int(svc.detail.SourcePort))
 				if err != nil {
-					s.log.Error("Unable to create listener for service", "service_id", id, "error", err)
+					s.log.Error(
+						"server_local",
+						"message", "Unable to create listener for service",
+						"service_id", id, "error", err)
+
 					return true
 				}
 
 				// create the integration such as a kubernetes service
 				err = s.createIntegration(id, svc.detail.Name, int(svc.detail.SourcePort))
 				if err != nil {
-					s.log.Error("Unable to create integration for service", "service_id", id, "error", err)
+					s.log.Error(
+						"server_local",
+						"message", "Unable to create integration for service",
+						"service_id", id, "error", err)
+
 					return true
 				}
 
@@ -110,7 +145,11 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			}
 
 			// send the expose message to the remote so it can open
-			s.log.Debug("Sending expose message to remote component", "addr", svc.detail.RemoteConnectorAddr)
+			s.log.Debug(
+				"server_local",
+				"message", "Sending expose message to remote side",
+				"addr", svc.detail.RemoteConnectorAddr)
+
 			req := &shipyard.OpenData{ServiceId: id}
 			req.Message = &shipyard.OpenData_Expose{Expose: &shipyard.ExposeRequest{Service: svc.detail}}
 
@@ -127,17 +166,28 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 
 func (s *Server) openRemoteConnection(addr string) (*grpcConn, error) {
 	// we need to open a stream to the remote server
-	s.log.Debug("Opening Stream to remote server", "addr", addr)
+	s.log.Debug(
+		"server_local",
+		"message", "Opening grpc bi-directional stream to remote server",
+		"addr", addr)
 
 	c, err := s.getClient(addr)
 	if err != nil {
-		s.log.Error("Unable to get remote client", "addr", addr, "error", err)
+		s.log.Error(
+			"server_local",
+			"message", "Unable to create client",
+			"addr", addr, "error", err)
+
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
 	rc, err := c.OpenStream(context.Background())
 	if err != nil {
-		s.log.Error("Unable to open remote connection", "addr", addr, "error", err)
+		s.log.Error(
+			"server_local",
+			"message", "Unable to establish remote connection",
+			"addr", addr, "error", err)
+
 		return nil, fmt.Errorf("Unable to open remote connection to server %s: %s", addr, err)
 	}
 
@@ -169,21 +219,31 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 			case msg := <-newMessage:
 				s.handleRemoteMessage(si, msg)
 			case err := <-newError:
-				s.log.Error("Error receiving message from remote connection", "addr", si.addr, "error", err)
+				s.log.Error(
+					"local_server",
+					"message", "Error receiving message from remote connection",
+					"addr", si.addr, "error", err)
 
 				// if the connection has not been closed reconnect
 				// and if the server is not shutting down
 				if !si.grpcConn.Closed && !s.Closed() {
+					s.log.Debug(
+						"local_server",
+						"message", "Connection closed, attempt reconection",
+						"addr", si.addr)
+
 					// We need to tear down any listeners related to this request and clean up resources
 					// the downstream should attempt to re-establish the connection and resend the expose requests
 					s.teardownConnection(si)
-
 					s.handleReconnection(si)
 				}
 
 				return // exit this loop as handleReconnection will recall ths function when a connection is established
 			case <-si.grpcConn.Done():
-				s.log.Debug("Connection cancelled")
+				s.log.Debug(
+					"local_server",
+					"message", "Connection context cancelled",
+					"addr", si.addr)
 				return
 			}
 
@@ -192,29 +252,56 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 }
 
 func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
-	s.log.Debug("Received client message", "serviceID", msg.ServiceId, "connectionID", msg.ConnectionId)
+	s.log.Debug(
+		"local_server",
+		"message", "Received message",
+		"serviceID", msg.ServiceId,
+		"connectionID", msg.ConnectionId)
 
 	switch m := msg.Message.(type) {
 	case *shipyard.OpenData_Data:
-		s.log.Trace("Received client message", "service_id", msg.ServiceId, "msg", msg)
+		s.log.Trace(
+			"local_server",
+			"message", "Received data from remote",
+			"service_id", msg.ServiceId,
+			"msg", msg)
 
-		// if we get data send it to the local service instance
-		// do we have a local connection, if not create one
+		// if we get data find the connection for the message
+		// if we do not have a connection create one
 		svc, _ := si.services.get(msg.ServiceId)
 		c, ok := svc.getTCPConnection(msg.ConnectionId)
 		if !ok {
-			// is this an message reply to a local listener, if there is no connection
-			// assume it has gone away so ignore
+			// is this a message for an upstream and if there is no connection
+			// assume the upstream has disconnected and ignore the message
 			if svc.detail.Type == shipyard.ServiceType_REMOTE {
-				s.log.Error("Connection does not exist for local listener", "port", svc.detail.SourcePort)
+				s.log.Error(
+					"local_server",
+					"message", "No connection for data, ignore message",
+					"port", svc.detail.SourcePort,
+					"serviceID", msg.ServiceId,
+					"connectionID", msg.ConnectionId)
+
 				return
 			}
+
+			s.log.Trace(
+				"local_server",
+				"message", "Create new upstream connection for data",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId,
+				"addr", svc.detail.DestinationAddr)
 
 			// otherwise create a new upstream connection
 			var err error
 			newCon, err := net.Dial("tcp", svc.detail.DestinationAddr)
 			if err != nil {
-				s.log.Error("Unable to create connection to remote", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId, "addr", svc.detail.DestinationAddr)
+				s.log.Error(
+					"local_server",
+					"message", "Unable to create connection to remote",
+					"service_id", msg.ServiceId,
+					"connection_id", msg.ConnectionId,
+					"addr", svc.detail.DestinationAddr)
+
 				return
 			}
 
@@ -223,31 +310,85 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			svc.setTCPConnection(msg.ConnectionId, c)
 		}
 
-		s.log.Debug("Writing data to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
-		c.Write(m.Data.Data)
-		s.log.Debug("Data written to local connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+		s.log.Trace(
+			"local_server",
+			"message", "Writing data to local connection",
+			"service_id", msg.ServiceId,
+			"connection_id", msg.ConnectionId)
 
-	case *shipyard.OpenData_WriteDone:
-		s.log.Trace("Received client message", "service_id", msg.ServiceId, "msg", msg)
+		i, err := c.Write(m.Data.Data)
+		if err != nil {
+			if err == io.EOF {
+				s.log.Debug(
+					"local_server",
+					"message", "Connection closed",
+					"service_id", msg.ServiceId,
+					"connection_id", msg.ConnectionId)
+			} else {
+				s.log.Error(
+					"local_server",
+					"message", "Error writing to connection",
+					"service_id", msg.ServiceId,
+					"connection_id", msg.ConnectionId,
+					"error", err,
+				)
+
+			}
+
+			// send closed message
+
+		}
+
+		s.log.Trace(
+			"local_server",
+			"message", "Data written to local connection",
+			"service_id", msg.ServiceId,
+			"connection_id", msg.ConnectionId)
+
+		// if the size of the data is less than the max buffer
 		// all writing has been completed for the connection switch to read mode
-		s.readData(msg)
+		if i < MessageSize {
+			s.readData(msg)
+		}
+
 	case *shipyard.OpenData_Closed:
-		s.log.Debug("Received closed message", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+		s.log.Trace(
+			"local_server",
+			"message", "Received close connection message",
+			"service_id", msg.ServiceId,
+			"connection_id", msg.ConnectionId)
+
 		svc, _ := si.services.get(msg.ServiceId)
 		if svc == nil {
-			s.log.Debug("Service does not exist", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+			s.log.Error(
+				"local_server",
+				"message", "Service does not exist",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId)
+
 			return
 		}
 
 		c, ok := svc.getTCPConnection(msg.ConnectionId)
 		if ok {
-			s.log.Debug("Closing connection", "service_id", msg.ServiceId, "connection_id", msg.ConnectionId)
+			s.log.Trace(
+				"local_server",
+				"message", "Closing connection",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId)
+
 			// we have a connection close it
 			c.Close()
 			svc.removeTCPConnection(msg.ConnectionId)
 		}
+
 	case *shipyard.OpenData_StatusUpdate:
-		s.log.Debug("Received status message", "service_id", msg.ServiceId, "status", m.StatusUpdate.Status)
+		s.log.Trace(
+			"local_server",
+			"message", "Received status message",
+			"service_id", msg.ServiceId,
+			"status", m.StatusUpdate.Status)
+
 		svc, _ := si.services.get(msg.ServiceId)
 		svc.detail.Status = m.StatusUpdate.Status
 	}
