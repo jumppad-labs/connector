@@ -1,0 +1,17 @@
+FROM golang:latest as build
+
+RUN mkdir -p /go/src/github.com/shipyard-run/connector
+
+COPY . /go/src/github.com/shipyard-run/connector/
+
+WORKDIR /go/src/github.com/shipyard-run/connector
+
+RUN CGO_ENABLED=0 go build -o ./bin/connector .
+
+FROM alpine:latest
+
+RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
+
+COPY --from=build /go/src/github.com/shipyard-run/connector/bin/connector /connector
+
+ENTRYPOINT [ "/connector" ]

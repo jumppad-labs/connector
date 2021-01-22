@@ -5,7 +5,7 @@ network "local" {
 k8s_cluster "connector" {
 
   image {
-    name = "registry.shipyard.run/connector:dev"
+		name = var.connector_image
   }
 
   driver = "k3s"

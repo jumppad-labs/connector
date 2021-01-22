@@ -37,7 +37,7 @@ spec:
       containers:
       - name: connector
         imagePullPolicy: IfNotPresent
-        image: registry.shipyard.run/connector:dev
+        image: connector:dev
         ports:
           - name: http
             containerPort: 9091

@@ -8,14 +8,15 @@ import (
 type bufferedConn struct {
 	r        *bufio.Reader
 	net.Conn // So that most methods are embedded
+	id       string
 }
 
 func newBufferedConn(c net.Conn) *bufferedConn {
-	return &bufferedConn{bufio.NewReader(c), c}
+	return &bufferedConn{bufio.NewReader(c), c, ""}
 }
 
 func newBufferedConnSize(c net.Conn, n int) *bufferedConn {
-	return &bufferedConn{bufio.NewReaderSize(c, n), c}
+	return &bufferedConn{bufio.NewReaderSize(c, n), c, ""}
 }
 
 func (b *bufferedConn) Peek(n int) ([]byte, error) {

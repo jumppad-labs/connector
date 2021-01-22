@@ -18,3 +18,4 @@ dist
 certs/
 coverage.txt
 gotestsum
+.envrc
