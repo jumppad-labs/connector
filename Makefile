@@ -37,7 +37,7 @@ setup_multiarch:
 	docker buildx inspect --bootstrap
 
 clean_multiarch:
-	docker buildx rm multi
+	docker buildx rm multi || true
 
 build_docker: clean_multiarch snapshot setup_multiarch
 	docker buildx build --platform linux/amd64 \
@@ -56,3 +56,12 @@ push_multi_docker:
 build_and_test: build_docker
 	cd test/simple && shipyard test --var connector_image=connector:dev
 	cd test/kubernetes && shipyard test --var connector_image=connector:dev
+
+build_dev:
+	docker build \
+		-t connector:dev \
+		-f ./Dockerfile.dev \
+		.
+
+run_dev:
+	cd test/simple && shipyard run --var connector_image=connector:dev

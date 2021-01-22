@@ -2,7 +2,6 @@ package remote
 
 import (
 	"io"
-	"time"
 
 	"github.com/shipyard-run/connector/protos/shipyard"
 )
@@ -95,40 +94,6 @@ func (s *Server) handleConnectionRead(serviceID string, si *streamInfo, svc *ser
 				"i", i,
 				"service_id", serviceID,
 				"connID", conn.id)
-
-			// check if remote has closed the connection
-			conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-			if _, err := conn.Peek(1); err == io.EOF {
-				s.log.Debug(
-					"listener",
-					"message", "Detected connection closed",
-					"service_id", serviceID,
-					"connection_id", conn.id,
-					"error", err)
-
-				conn.Close()
-				svc.removeTCPConnection(conn.id)
-
-				si.grpcConn.Send(
-					&shipyard.OpenData{
-						ServiceId:    serviceID,
-						ConnectionId: conn.id,
-						Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
-					},
-				)
-
-			} else {
-				s.log.Debug(
-					"listener",
-					"message", "All data read but connection still open",
-					"service_id", serviceID,
-					"connection_id", conn.id,
-					"error", err)
-
-				conn.SetReadDeadline(time.Now().Add(10 * time.Millisecond))
-			}
-
-			return
 		}
 	}
 }

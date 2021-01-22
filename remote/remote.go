@@ -230,6 +230,9 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 				c = newBufferedConn(newConn)
 				c.id = msg.ConnectionId
 				svc.setTCPConnection(msg.ConnectionId, c)
+
+				// start read handler and don't block
+				go s.handleConnectionRead(msg.ServiceId, si, svc, c)
 			}
 
 			s.log.Trace(
@@ -283,8 +286,6 @@ func (s *Server) newRemoteStream(svr shipyard.RemoteConnection_OpenStreamServer)
 					"message_size", MessageSize,
 					"service_id", msg.ServiceId,
 					"connection_id", msg.ConnectionId)
-
-				s.handleConnectionRead(msg.ServiceId, si, svc, c)
 			}
 
 		case *shipyard.OpenData_Closed:
