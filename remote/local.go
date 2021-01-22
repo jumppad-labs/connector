@@ -34,8 +34,7 @@ func (s *Server) getClient(addr string) (shipyard.RemoteConnectionClient, error)
 		conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
 		if err != nil {
 			return nil, fmt.Errorf(
-				"server",
-				"message", "Unable to dial %s: %s", addr, err)
+				"Unable to dial %s: %s", addr, err)
 		}
 
 		return shipyard.NewRemoteConnectionClient(conn), nil
@@ -59,7 +58,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 	// ensure there is only one operation in process at once
 	if conn.isConnecting() {
 		s.log.Info(
-			"server_local",
+			"local_server",
 			"message", "Connection attempt already in process",
 			"addr", conn.addr)
 
@@ -77,14 +76,14 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 		if conn.grpcConn == nil || conn.grpcConn.Closed {
 			// connect to the service
 			s.log.Info(
-				"sever_local",
+				"local_server",
 				"message", "Connecting to remote server",
 				"addr", conn.addr)
 
 			gc, err := s.openRemoteConnection(conn.addr)
 			if err != nil {
 				s.log.Error(
-					"server_local",
+					"local_server",
 					"message",
 					"Unable to open remote connection", "error", err)
 
@@ -98,7 +97,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 
 			// send a ping message
 			s.log.Debug(
-				"server_local",
+				"local_server",
 				"message", "Remote connetion estabilished, ping connection",
 				"addr", conn.addr)
 
@@ -122,7 +121,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 				l, err := s.createListenerAndListen(id, int(svc.detail.SourcePort))
 				if err != nil {
 					s.log.Error(
-						"server_local",
+						"local_server",
 						"message", "Unable to create listener for service",
 						"service_id", id, "error", err)
 
@@ -133,7 +132,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 				err = s.createIntegration(id, svc.detail.Name, int(svc.detail.SourcePort))
 				if err != nil {
 					s.log.Error(
-						"server_local",
+						"local_server",
 						"message", "Unable to create integration for service",
 						"service_id", id, "error", err)
 
@@ -146,7 +145,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 
 			// send the expose message to the remote so it can open
 			s.log.Debug(
-				"server_local",
+				"local_server",
 				"message", "Sending expose message to remote side",
 				"addr", svc.detail.RemoteConnectorAddr)
 
@@ -167,14 +166,14 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 func (s *Server) openRemoteConnection(addr string) (*grpcConn, error) {
 	// we need to open a stream to the remote server
 	s.log.Debug(
-		"server_local",
+		"local_server",
 		"message", "Opening grpc bi-directional stream to remote server",
 		"addr", addr)
 
 	c, err := s.getClient(addr)
 	if err != nil {
 		s.log.Error(
-			"server_local",
+			"local_server",
 			"message", "Unable to create client",
 			"addr", addr, "error", err)
 
@@ -184,7 +183,7 @@ func (s *Server) openRemoteConnection(addr string) (*grpcConn, error) {
 	rc, err := c.OpenStream(context.Background())
 	if err != nil {
 		s.log.Error(
-			"server_local",
+			"local_server",
 			"message", "Unable to establish remote connection",
 			"addr", addr, "error", err)
 
@@ -215,6 +214,10 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 		}(si)
 
 		for {
+			s.log.Trace(
+				"local_server",
+				"message", "Waiting for remote client message")
+
 			select {
 			case msg := <-newMessage:
 				s.handleRemoteMessage(si, msg)
@@ -263,6 +266,7 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 		s.log.Trace(
 			"local_server",
 			"message", "Received data from remote",
+			"message_id", m.Data.Id,
 			"service_id", msg.ServiceId,
 			"msg", msg)
 
@@ -278,8 +282,8 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 					"local_server",
 					"message", "No connection for data, ignore message",
 					"port", svc.detail.SourcePort,
-					"serviceID", msg.ServiceId,
-					"connectionID", msg.ConnectionId)
+					"service_id", msg.ServiceId,
+					"connection_id", msg.ConnectionId)
 
 				return
 			}
@@ -297,16 +301,24 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			if err != nil {
 				s.log.Error(
 					"local_server",
-					"message", "Unable to create connection to remote",
+					"message", "Unable to create connection to upstream",
 					"service_id", msg.ServiceId,
 					"connection_id", msg.ConnectionId,
 					"addr", svc.detail.DestinationAddr)
 
+				si.grpcConn.Send(
+					&shipyard.OpenData{
+						ServiceId:    msg.ServiceId,
+						ConnectionId: msg.ConnectionId,
+						Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+					},
+				)
 				return
 			}
 
 			// set the connection
 			c = newBufferedConn(newCon)
+			c.id = msg.ConnectionId
 			svc.setTCPConnection(msg.ConnectionId, c)
 		}
 
@@ -336,7 +348,13 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			}
 
 			// send closed message
-
+			si.grpcConn.Send(
+				&shipyard.OpenData{
+					ServiceId:    msg.ServiceId,
+					ConnectionId: msg.ConnectionId,
+					Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+				},
+			)
 		}
 
 		s.log.Trace(
@@ -348,7 +366,15 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 		// if the size of the data is less than the max buffer
 		// all writing has been completed for the connection switch to read mode
 		if i < MessageSize {
-			s.readData(msg)
+			s.log.Trace(
+				"local_server",
+				"message", "All data written to local connection, start read",
+				"data_written", i,
+				"message_size", MessageSize,
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId)
+
+			s.handleConnectionRead(msg.ServiceId, si, svc, c)
 		}
 
 	case *shipyard.OpenData_Closed:
