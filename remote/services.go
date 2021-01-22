@@ -48,7 +48,7 @@ func (s *services) contains(svc *service) bool {
 	for _, r := range s.svcs {
 		// check to see if we already have a listener defined for this port
 		if svc.detail.SourcePort == r.detail.SourcePort &&
-			svc.detail.Type == shipyard.ServiceType_REMOTE {
+			r.detail.Type == shipyard.ServiceType_REMOTE {
 			return true
 		}
 
@@ -80,6 +80,23 @@ type service struct {
 	detail         *shipyard.Service
 	tcpListener    net.Listener
 	tcpConnections sync.Map
+}
+
+func (s *service) getTCPConnection(key string) (*bufferedConn, bool) {
+	con, ok := s.tcpConnections.Load(key)
+	if !ok {
+		return nil, false
+	}
+
+	return con.(*bufferedConn), true
+}
+
+func (s *service) setTCPConnection(key string, conn *bufferedConn) {
+	s.tcpConnections.Store(key, conn)
+}
+
+func (s *service) removeTCPConnection(key string) {
+	s.tcpConnections.Delete(key)
 }
 
 func newService() *service {

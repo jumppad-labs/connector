@@ -42,6 +42,7 @@ func (l *List) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	services := []Service{}
 	for _, v := range svcs.Services {
 		s := Service{
+			ID:                  v.Id,
 			Name:                v.Name,
 			SourcePort:          int(v.SourcePort),
 			RemoteConnectorAddr: v.RemoteConnectorAddr,
