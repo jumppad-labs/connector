@@ -62,7 +62,8 @@ func (s *Server) handleListener(serviceID string, l net.Listener) {
 			c.id = connID
 			svc.tcpConnections.Store(connID, c)
 
-			s.handleConnectionRead(serviceID, si, svc, c)
+			// read and immediately accept the next connection
+			go s.handleConnectionRead(serviceID, si, svc, c)
 		}
 	}(serviceID, l)
 }

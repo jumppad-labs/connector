@@ -320,6 +320,9 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 			c = newBufferedConn(newCon)
 			c.id = msg.ConnectionId
 			svc.setTCPConnection(msg.ConnectionId, c)
+
+			// start read handler and don't block
+			go s.handleConnectionRead(msg.ServiceId, si, svc, c)
 		}
 
 		s.log.Trace(
@@ -344,7 +347,6 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 					"connection_id", msg.ConnectionId,
 					"error", err,
 				)
-
 			}
 
 			// send closed message
@@ -374,7 +376,6 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 				"service_id", msg.ServiceId,
 				"connection_id", msg.ConnectionId)
 
-			s.handleConnectionRead(msg.ServiceId, si, svc, c)
 		}
 
 	case *shipyard.OpenData_Closed:
