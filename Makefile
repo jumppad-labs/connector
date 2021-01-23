@@ -65,3 +65,6 @@ build_dev:
 
 run_dev:
 	cd test/simple && shipyard run --var connector_image=connector:dev
+
+setup_local_dev:
+	curl -vv -k https://localhost:9091/expose -d '{"name":"test1", "source_port": 13000, "remote_connector_addr": "remote-connector.container.shipyard.run:9092", "destination_addr": "local-service.container.shipyard.run:9094", "type": "local"}'
