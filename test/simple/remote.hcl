@@ -9,7 +9,7 @@ container "remote_connector" {
     "run",
     "--grpc-bind=:9092",
     "--http-bind=:9093",
-    "--log-level=debug",
+    "--log-level=trace",
     "--root-cert-path=/certs/root.cert",
     "--server-cert-path=/certs/remote/leaf.cert",
     "--server-key-path=/certs/remote/leaf.key",

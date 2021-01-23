@@ -20,7 +20,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock) {
+func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock, func()) {
 	//certificate, err := tls.LoadX509KeyPair("/tmp/certs/leaf.cert", "/tmp/certs/leaf.key")
 	//require.NoError(t, err)
 
@@ -72,14 +72,17 @@ func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock)
 	// start the server in the background
 	go grpcServer.Serve(lis)
 
-	t.Cleanup(func() {
+	cleanup := func() {
 		s.Shutdown()
 		grpcServer.Stop()
 		lis.Close()
+	}
 
+	t.Cleanup(func() {
+		cleanup()
 	})
 
-	return s, mi
+	return s, mi, cleanup
 }
 
 func startLocalServer(t *testing.T) (string, *string) {
@@ -110,6 +113,7 @@ type serverStruct struct {
 	Port        int
 	Address     string
 	Integration *integrations.Mock
+	Cleanup     func()
 }
 
 var servers []serverStruct
@@ -124,14 +128,14 @@ func setupServers(t *testing.T) (string, *string) {
 	a3 := fmt.Sprintf("localhost:%d", p3)
 
 	// local server
-	s1, m1 := createServer(t, a1, "server_local_1")
-	s2, m2 := createServer(t, a2, "server_local_2")
-	s3, m3 := createServer(t, a3, "server_local_3")
+	s1, m1, c1 := createServer(t, a1, "server_local_1")
+	s2, m2, c2 := createServer(t, a2, "server_local_2")
+	s3, m3, c3 := createServer(t, a3, "server_local_3")
 
 	servers = []serverStruct{
-		{s1, p1, a1, m1},
-		{s2, p2, a2, m2},
-		{s3, p3, a3, m3},
+		{s1, p1, a1, m1, c1},
+		{s2, p2, a2, m2, c2},
+		{s3, p3, a3, m3, c3},
 	}
 
 	// setup the local endpoint
@@ -344,6 +348,103 @@ func TestExposeRemoteServiceUpdatesStatus(t *testing.T) {
 	)
 }
 
+func TestReconfigureRemoteServiceUpdatesListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	p := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	require.Eventually(t,
+		func() bool {
+			_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
+			return err == nil
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	// remove the service
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) == 0 {
+				return true
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	// reconfigure
+	resp, err = c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p + 1,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	require.Eventually(t,
+		func() bool {
+			_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p+1))
+			return err == nil
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+}
+
 func TestExposeRemoteDuplicateReturnsError(t *testing.T) {
 	c, _, _ := setupTests(t)
 
@@ -547,6 +648,50 @@ func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
 	// check the listener is not accessible
 	_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
 	require.Error(t, err)
+}
+
+func TestDisconnectRemovesRemoteListenerThenReconnects(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	p := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_LOCAL,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	time.Sleep(100 * time.Millisecond) // wait for setup
+
+	// check the listener exists
+	_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
+	require.NoError(t, err)
+
+	// shutdown the remote and remove listeners
+	servers[1].Cleanup()
+
+	_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
+	require.Error(t, err)
+
+	// restart the service
+	createServer(t, servers[1].Address, "server_local_2")
+
+	// connection should be re-established when the remote restarts
+	require.Eventually(t, func() bool {
+		// check the listener exists
+		_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
+		return err == nil
+	},
+		3*time.Second,
+		50*time.Millisecond,
+	)
 }
 
 func TestDestroyRemoteServiceRemovesLocalIntegration(t *testing.T) {

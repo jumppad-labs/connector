@@ -72,8 +72,20 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 	}()
 
 	for s.ctx.Err() == nil {
+		closed := true
+		if conn.grpcConn != nil && !conn.grpcConn.Closed {
+			closed = false
+		}
+
+		s.log.Trace(
+			"local_server",
+			"message", "Reconnecting, current connection state",
+			"grpcConn_nil", conn.grpcConn == nil,
+			"grpcConn_closed", closed,
+		)
+
 		// if we do not have a connection create one
-		if conn.grpcConn == nil || conn.grpcConn.Closed {
+		if closed {
 			// connect to the service
 			s.log.Info(
 				"local_server",
@@ -157,8 +169,14 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 			return true
 		})
 
-		break
+		return nil
 	}
+
+	s.log.Debug(
+		"local_server",
+		"message", "Context cancelled while waiting to reconnect",
+		"err", s.ctx.Err(),
+	)
 
 	return nil
 }
@@ -234,6 +252,9 @@ func (s *Server) handleRemoteConnection(si *streamInfo) {
 						"local_server",
 						"message", "Connection closed, attempt reconection",
 						"addr", si.addr)
+
+					// mark the internal structure as closed
+					si.grpcConn.Closed = true
 
 					// We need to tear down any listeners related to this request and clean up resources
 					// the downstream should attempt to re-establish the connection and resend the expose requests
