@@ -348,6 +348,103 @@ func TestExposeRemoteServiceUpdatesStatus(t *testing.T) {
 	)
 }
 
+func TestReconfigureRemoteServiceUpdatesListener(t *testing.T) {
+	c, _, _ := setupTests(t)
+
+	p := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	require.Eventually(t,
+		func() bool {
+			_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p))
+			return err == nil
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	// remove the service
+	c.DestroyService(context.Background(), &shipyard.DestroyRequest{Id: resp.Id})
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) == 0 {
+				return true
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	// reconfigure
+	resp, err = c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test Service",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p + 1,
+			DestinationAddr:     "localhost:19001",
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	require.Eventually(t,
+		func() bool {
+			s, _ := c.ListServices(context.Background(), &shipyard.NullMessage{})
+			if len(s.Services) > 0 {
+				if s.Services[0].Status == shipyard.ServiceStatus_COMPLETE {
+					return true
+				}
+			}
+
+			return false
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+
+	require.Eventually(t,
+		func() bool {
+			_, err = net.Dial("tcp", fmt.Sprintf("localhost:%d", p+1))
+			return err == nil
+		},
+		1*time.Second,
+		50*time.Millisecond,
+	)
+}
+
 func TestExposeRemoteDuplicateReturnsError(t *testing.T) {
 	c, _, _ := setupTests(t)
 
