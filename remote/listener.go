@@ -11,7 +11,7 @@ func (s *Server) createListenerAndListen(serviceID string, port int) (net.Listen
 	s.log.Info("listener", "message", "Create Listener", "port", port)
 
 	// create the listener
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	l, err := net.Listen("tcp4", fmt.Sprintf(":%d", port))
 	if err != nil {
 		s.log.Error("listener", "message", "Unable to create TCP listener", "error", err)
 		return nil, err

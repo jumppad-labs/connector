@@ -42,7 +42,7 @@ func GenerateKeyPair() (*KeyPair, error) {
 
 func (k *PrivateKey) PEMBlock() []byte {
 	pkb := &pem.Block{
-		Type:  "PRIVATE KEY",
+		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(k.PrivateKey),
 	}
 
