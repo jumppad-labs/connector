@@ -9,23 +9,15 @@ k8s_cluster "connector" {
   }
 
   driver = "k3s"
-  version = "v1.17.9-k3s1"
 
   network {
     name = "network.local"
   }
 }
 
-exec_local "certs" {
-	depends_on = ["k8s_cluster.connector"]
-
-	cmd = "../../install/kubernetes/generate_certs.sh"
-	working_directory = "../../install/kubernetes/"
-}
-
 k8s_ingress "connector" {
   cluster     = "k8s_cluster.connector"
-	namespace   = "shipyard" 
+	namespace   = "shipyard-test" 
   service     = "connector"
 
   network {
@@ -45,15 +37,9 @@ k8s_ingress "connector" {
   }
 }
 
-k8s_config "connector" {
-	cluster = "k8s_cluster.connector"
-	paths = ["../../install/kubernetes/connector_rbac.yaml", "../../install/kubernetes/connector.yaml"]
-	wait_until_ready = true
-}
-
 k8s_ingress "localconnector" {
   cluster     = "k8s_cluster.connector"
-	namespace   = "shipyard" 
+	namespace   = "shipyard-test" 
   service     = "localconnector"
 
   network {

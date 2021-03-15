@@ -1,13 +1,16 @@
-#!/bin/bash
-rm -rf ./certs
+#!/bin/sh
+rm -rf ./certs/root.cert
+rm -rf ./certs/root.key
+rm -rf ./certs/local
+rm -rf ./certs/remote
 
 mkdir -p ./certs/local
 mkdir -p ./certs/remote
 
-connector generate-certs --ca ./certs
+/connector generate-certs --ca ./certs
 
 # Generate the leaf certs for the k8s connector
-connector generate-certs \
+/connector generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
           --dns-name ":9090" \
@@ -29,7 +32,7 @@ connector generate-certs \
           --root-key ./certs/root.key \
           ./certs/local
 
-connector generate-certs \
+/connector generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
           --dns-name ":9090" \
