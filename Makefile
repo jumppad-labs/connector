@@ -48,7 +48,7 @@ build_docker: clean_multiarch snapshot setup_multiarch
 
 push_multi_docker:
 	docker buildx build --platform linux/arm/v7,linux/amd64 \
-		-t gcr.io/shipyard-287511/connector:dev \
+		-t shipyardrun/connector:dev \
 		-f ./Dockerfile \
 		./dist \
 		--push

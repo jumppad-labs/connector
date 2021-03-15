@@ -37,7 +37,7 @@ var runCmd = &cobra.Command{
 		var in integrations.Integration
 		switch integration {
 		case "kubernetes":
-			in = k8s.New(l.Named("k8s_integration"))
+			in = k8s.New(l.Named("k8s_integration"), namespace)
 		}
 
 		grpcServer := grpc.NewServer()
@@ -115,6 +115,7 @@ var pathCertServer string
 var pathKeyServer string
 var logLevel string
 var integration string
+var namespace string
 
 func init() {
 	runCmd.Flags().StringVarP(&grpcBindAddr, "grpc-bind", "", ":9090", "Bind address for the gRPC API")
@@ -124,4 +125,5 @@ func init() {
 	runCmd.Flags().StringVarP(&pathKeyServer, "server-key-path", "", "", "Path for the servers PEM encoded Private Key")
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
 	runCmd.Flags().StringVarP(&integration, "integration", "", "", "Integration to use [kubernetes]")
+	runCmd.Flags().StringVarP(&namespace, "namespace", "", "", "Kubernetes namespace when using Kubernetes integration, default: shipyard")
 }
