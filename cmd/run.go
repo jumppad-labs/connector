@@ -125,5 +125,5 @@ func init() {
 	runCmd.Flags().StringVarP(&pathKeyServer, "server-key-path", "", "", "Path for the servers PEM encoded Private Key")
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
 	runCmd.Flags().StringVarP(&integration, "integration", "", "", "Integration to use [kubernetes]")
-	runCmd.Flags().StringVarP(&namespace, "namespace", "", "", "Kubernetes namespace when using Kubernetes integration, default: shipyard")
+	runCmd.Flags().StringVarP(&namespace, "namespace", "", "shipyard", "Kubernetes namespace when using Kubernetes integration, default: shipyard")
 }
