@@ -30,4 +30,3 @@ container "local_connector" {
     destination = "/certs"
   }
 }
-

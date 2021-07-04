@@ -47,7 +47,7 @@ build_docker: clean_multiarch snapshot setup_multiarch
 		--load
 
 push_multi_docker:
-	docker buildx build --platform linux/arm/v7,linux/amd64 \
+	docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/arm64,linux/amd64 \
 		-t shipyardrun/connector:dev \
 		-f ./Dockerfile \
 		./dist \
