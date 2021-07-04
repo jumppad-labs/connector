@@ -14,12 +14,13 @@ import (
 // Integration handles the integration between the connector and the local platform
 type Integration struct {
 	// k8s api endpoint
-	log hclog.Logger
+	log       hclog.Logger
+	namespace string
 }
 
 // New creates a new Kubernetes integration
-func New(log hclog.Logger) *Integration {
-	return &Integration{log}
+func New(log hclog.Logger, namespace string) *Integration {
+	return &Integration{log, namespace}
 }
 
 // Register handles events when new services are exposed
@@ -31,7 +32,7 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 	}
 
 	// does the service already exist?
-	svc, err := clientset.CoreV1().Services("shipyard").Get(name, metav1.GetOptions{})
+	svc, err := clientset.CoreV1().Services(i.namespace).Get(name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		i.log.Error("Unable to get services", "error", err)
 		return err
@@ -58,7 +59,7 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 	}
 
 	// create the service
-	svc, err = clientset.CoreV1().Services("shipyard").Create(svc)
+	svc, err = clientset.CoreV1().Services(i.namespace).Create(svc)
 	if err != nil {
 		return fmt.Errorf("Unable to create Kubernetes service: %s", err)
 	}
@@ -74,7 +75,7 @@ func (i *Integration) Deregister(id string) error {
 		return err
 	}
 
-	err = clientset.CoreV1().Services("shipyard").Delete(id, &metav1.DeleteOptions{})
+	err = clientset.CoreV1().Services(i.namespace).Delete(id, &metav1.DeleteOptions{})
 	if err != nil {
 		i.log.Error("Unable to remove Kubernetes service", "error", err)
 		return err

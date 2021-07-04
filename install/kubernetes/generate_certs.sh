@@ -1,14 +1,22 @@
-#!/bin/bash
+#!/bin/sh
 
-export KUBECONFIG="${HOME}/.shipyard/config/connector/kubeconfig.yaml"
+COMMAND="/connector"
 
-rm -rf ./certs
+# We run this in the connector contaianer, if not running there
+# fall back to default path
+if ! command -v $COMMAND &> /dev/null; then
+  COMMAND = "connector"
+fi
 
-mkdir ./certs
-connector generate-certs --ca ./certs
+rm -rf ./certs/local
+rm -rf ./certs/k8s
+rm -rf ./certs/root.cert
+rm -rf ./certs/root.key
 
-mkdir ./certs/k8s
 mkdir ./certs/local
+mkdir ./certs/k8s
+
+$COMMAND generate-certs --ca ./certs
 
 # Define the DNS name and Ports for the public entrypoint for the K8s server
 K8S_PUBLIC_ADDRESS="localhost"
@@ -16,7 +24,7 @@ K8S_PUBLIC_ADDRESS_API="${K8S_PUBLIC_ADDRESS}:19090"
 K8S_PUBLIC_ADDRESS_GRPC="${K8S_PUBLIC_ADDRESS}:19091"
 
 # Generate the leaf certs for the k8s connector
-connector generate-certs \
+$COMMAND generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
           --dns-name "${K8S_PUBLIC_ADDRESS}" \
@@ -34,7 +42,7 @@ connector generate-certs \
           ./certs/k8s
 
 # Generate certs for a local component
-connector generate-certs \
+$COMMAND generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
           --dns-name ":9090" \
@@ -46,6 +54,3 @@ connector generate-certs \
           --root-key ./certs/root.key \
           ./certs/local
 
-# Create the secret in K8s
-kubectl create secret -n shipyard tls connector-tls-ca --cert="./certs/root.cert" --key="./certs/root.key"
-kubectl create secret -n shipyard tls connector-tls-leaf --cert="./certs/k8s/leaf.cert" --key="./certs/k8s/leaf.key"

@@ -1,11 +1,12 @@
 container "local_connector" {
-	depends_on = ["exec_local.certs"]
+	depends_on = ["exec_remote.certs"]
 
   image {
 		name = var.connector_image
   }
 
   command = [
+    "/connector",
     "run",
     "--grpc-bind=:9090",
     "--http-bind=:9091",
@@ -25,8 +26,7 @@ container "local_connector" {
   }
 
   volume {
-    source = "../../install/kubernetes/certs"
+    source = "./certs"
     destination = "/certs"
   }
 }
-

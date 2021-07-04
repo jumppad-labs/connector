@@ -29,7 +29,7 @@ jobs:
         name: Set up Go
         uses: actions/setup-go@v1
         with:
-          go-version: 1.15.2
+          go-version: 1.16
 
       -
         name: Run GoReleaser
@@ -51,7 +51,7 @@ jobs:
       -
         name: Build and push
         run: |
-          docker buildx build --platform linux/arm/v7,linux/amd64 \
+          docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/arm64,linux/amd64 \
             -t shipyardrun/connector:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./dist \
