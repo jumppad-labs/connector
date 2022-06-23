@@ -62,8 +62,13 @@ var runCmd = &cobra.Command{
 				return errors.New("failed to append client certs")
 			}
 
+			clientAuth := tls.RequireAndVerifyClientCert
+			if !verifyClient {
+				clientAuth = tls.NoClientCert
+			}
+
 			creds := credentials.NewTLS(&tls.Config{
-				ClientAuth:   tls.RequireAndVerifyClientCert,
+				ClientAuth:   clientAuth,
 				Certificates: []tls.Certificate{certificate},
 				ClientCAs:    certPool,
 			})
@@ -116,6 +121,7 @@ var pathKeyServer string
 var logLevel string
 var integration string
 var namespace string
+var verifyClient bool
 
 func init() {
 	runCmd.Flags().StringVarP(&grpcBindAddr, "grpc-bind", "", ":9090", "Bind address for the gRPC API")
@@ -126,4 +132,5 @@ func init() {
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
 	runCmd.Flags().StringVarP(&integration, "integration", "", "", "Integration to use [kubernetes]")
 	runCmd.Flags().StringVarP(&namespace, "namespace", "", "shipyard", "Kubernetes namespace when using Kubernetes integration, default: shipyard")
+	runCmd.Flags().BoolVarP(&verifyClient, "verify-client-certs", "", true, "Verify client cert has been signed by same root as CA")
 }
