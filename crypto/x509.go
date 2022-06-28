@@ -65,11 +65,12 @@ func (x *X509) WriteFile(path string) error {
 }
 
 // GenerateLeaf creates an X509 leaf certificate
-func GenerateLeaf(ipAddresses []string, dnsNames []string, rootCert *X509, rootKey *PrivateKey, leafKey *PrivateKey) (*X509, error) {
+func GenerateLeaf(name string, ipAddresses []string, dnsNames []string, rootCert *X509, rootKey *PrivateKey, leafKey *PrivateKey) (*X509, error) {
 	leafCertTmpl, err := certTemplate()
 	if err != nil {
 		return nil, fmt.Errorf("Unable to generate root certificate template: %s", err)
 	}
+	leafCertTmpl.Subject.CommonName = name
 
 	leafCertTmpl.KeyUsage = x509.KeyUsageDigitalSignature
 	leafCertTmpl.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}
@@ -97,7 +98,7 @@ func GenerateLeaf(ipAddresses []string, dnsNames []string, rootCert *X509, rootK
 }
 
 // GenerateCA creates an X509 CA certificate
-func GenerateCA(pk *PrivateKey) (*X509, error) {
+func GenerateCA(name string, pk *PrivateKey) (*X509, error) {
 	rootCertTmpl, err := certTemplate()
 	if err != nil {
 		return nil, fmt.Errorf("Unable to generate root certificate template: %s", err)
@@ -105,6 +106,7 @@ func GenerateCA(pk *PrivateKey) (*X509, error) {
 
 	rootCertTmpl.IsCA = true
 	rootCertTmpl.KeyUsage = x509.KeyUsageCertSign | x509.KeyUsageDigitalSignature
+	rootCertTmpl.Subject.CommonName = name
 
 	certDER, err := x509.CreateCertificate(rand.Reader, rootCertTmpl, rootCertTmpl, pk.Public(), pk)
 	if err != nil {
@@ -132,7 +134,7 @@ func certTemplate() (*x509.Certificate, error) {
 		Subject:               pkix.Name{Organization: []string{"Shipyard"}},
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		NotBefore:             time.Now(),
-		NotAfter:              time.Now().Add((24 * 265) * time.Hour), // valid for an hour
+		NotAfter:              time.Now().Add((24 * 265) * time.Hour), // valid for a year
 		BasicConstraintsValid: true,
 	}
 
