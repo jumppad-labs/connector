@@ -21,7 +21,7 @@ var certCmd = &cobra.Command{
 				return err
 			}
 
-			c, err := crypto.GenerateCA(k.Private)
+			c, err := crypto.GenerateCA("Connector CA", k.Private)
 			if err != nil {
 				return err
 			}
@@ -63,7 +63,7 @@ var certCmd = &cobra.Command{
 				return err
 			}
 
-			lc, err := crypto.GenerateLeaf(ipAddresses, dnsNames, ca, rk.Private, k.Private)
+			lc, err := crypto.GenerateLeaf("Connector Leaf", ipAddresses, dnsNames, ca, rk.Private, k.Private)
 			if err != nil {
 				return err
 			}

@@ -19,7 +19,7 @@ func TestGeneratesCA(t *testing.T) {
 	k, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	c, err := GenerateCA(k.Private)
+	c, err := GenerateCA("CA", k.Private)
 
 	require.True(t, c.IsCA)
 }
@@ -28,7 +28,7 @@ func TestCASerializeToString(t *testing.T) {
 	k, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	c, err := GenerateCA(k.Private)
+	c, err := GenerateCA("CA", k.Private)
 	p := c.String()
 
 	assert.Greater(t, len(p), 1)
@@ -51,7 +51,7 @@ func TestCAReadWriteFile(t *testing.T) {
 	k, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	c, err := GenerateCA(k.Private)
+	c, err := GenerateCA("CA", k.Private)
 
 	c.WriteFile(path.Join(tmp, "test.cert"))
 	require.NoError(t, err)
@@ -67,14 +67,14 @@ func TestGeneratesLeaf(t *testing.T) {
 	rk, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	ca, err := GenerateCA(rk.Private)
+	ca, err := GenerateCA("CA", rk.Private)
 	require.True(t, ca.IsCA)
 
 	// create the leaf key
 	lk, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	lc, err := GenerateLeaf([]string{"127.0.0.1"}, []string{"toasties"}, ca, rk.Private, lk.Private)
+	lc, err := GenerateLeaf("Leaf", []string{"127.0.0.1"}, []string{"toasties"}, ca, rk.Private, lk.Private)
 	require.NoError(t, err)
 
 	require.Equal(t, lc.IPAddresses[0].String(), "127.0.0.1")
@@ -88,7 +88,7 @@ func TestCertValidHTTPCert(t *testing.T) {
 	rk, err := GenerateKeyPair()
 	require.NoError(t, err)
 
-	ca, err := GenerateCA(rk.Private)
+	ca, err := GenerateCA("CA", rk.Private)
 	require.True(t, ca.IsCA)
 
 	// create the server key
@@ -96,7 +96,7 @@ func TestCertValidHTTPCert(t *testing.T) {
 	require.NoError(t, err)
 
 	// generate the server cert
-	sc, err := GenerateLeaf([]string{"127.0.0.1"}, nil, ca, rk.Private, sk.Private)
+	sc, err := GenerateLeaf("Leaf", []string{"127.0.0.1"}, nil, ca, rk.Private, sk.Private)
 	require.NoError(t, err)
 
 	// create and start a test server
