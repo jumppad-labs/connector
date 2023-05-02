@@ -29,40 +29,6 @@ k8s_config "rbac" {
 	wait_until_ready = true
 }
 
-exec_remote "generate_webhook_yaml" {
-  depends_on = ["exec_remote.certs", "k8s_config.rbac"]
-  
-  image   {
-    name = "shipyardrun/tools:v0.3.0"
-  }
-  
-  network {
-    name = "network.local"
-  }
-
-  cmd = "/generate_webhook.sh"
-
-  # Mount a volume containing the config
-  volume {
-    source = "../../install/kubernetes/create_secrets.sh"
-    destination = "/create_secret.sh"
-  }
-  
-  volume {
-    source = "./certs"
-    destination = "/certs"
-  }
-
-  volume {
-    source      = "${k8s_config_docker("connector")}"
-    destination = "/.kube/config"
-  }
-
-  env_var = {
-    "KUBECONFIG" = "/.kube/config"
-  }
-}
-
 exec_remote "secret" {
   depends_on = ["exec_remote.certs", "k8s_config.rbac"]
 

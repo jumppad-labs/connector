@@ -17,7 +17,12 @@ container "local_connector" {
   ]
   
   port_range {
-    range = "9090-9091"
+    range = "9090-9100"
+    enable_host = true
+  }
+  
+  port_range {
+    range = "9990-9999"
     enable_host = true
   }
 

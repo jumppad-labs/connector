@@ -1,24 +1,11 @@
+GIT_SHA_FETCH := $(shell git rev-parse HEAD | cut -c 1-8)
+export GIT_SHA=$(GIT_SHA_FETCH)
+
 setup:
 	go get -u google.golang.org/grpc
 	go get -u github.com/golang/protobuf/protoc-gen-go
 
 unit_test:
-	#rm -rf /tmp/certs	
-	#mkdir -p /tmp/certs
-	#go run main.go generate-certs --ca /tmp/certs
-	#
-	## Generate the leaf certs for the k8s connector
-	#go run main.go generate-certs \
-  #        --leaf \
-  #        --ip-address 127.0.0.1 \
-  #        --dns-name "localhost" \
-	#				--dns-name "localhost:1234" \
-	#				--dns-name "localhost:1235" \
-	#				--dns-name "localhost:1236" \
-  #        --root-ca /tmp/certs/root.cert \
-  #        --root-key /tmp/certs/root.key \
-  #        /tmp/certs
-	
 	go test -coverprofile=coverage.txt -covermode=atomic -v ./...
 
 proto:
@@ -28,7 +15,12 @@ install_local:
 	go build -o ${GOPATH}/bin/connector .
 
 snapshot:
-	goreleaser release --rm-dist --snapshot
+	SHA=$(shell "git rev-parse HEAD")
+	rm -rf ./dist
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/linux_amd64/connector main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/darwin_amd64/connector main.go
+	CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/linux_arm64/connector main.go
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/darwin_arm64/connector main.go
 
 setup_multiarch:
 	docker run --rm --privileged multiarch/qemu-user-static --reset -p yes

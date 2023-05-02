@@ -62,23 +62,3 @@ exec_remote "secret" {
     "KUBECONFIG" = "/.kube/config"
   }
 }
-
-ingress "controller-webhook" {
-  source {
-    driver = "k8s"
-
-    config {
-      cluster = "k8s_cluster.connector"
-      port    = 9091
-    }
-  }
-
-  destination {
-    driver = "local"
-
-    config {
-      address = "localhost"
-      port    = 19091
-    }
-  }
-}

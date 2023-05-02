@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/hashicorp/go-hclog"
@@ -32,7 +33,7 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 	}
 
 	// does the service already exist?
-	svc, err := clientset.CoreV1().Services(i.namespace).Get(name, metav1.GetOptions{})
+	svc, err := clientset.CoreV1().Services(i.namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		i.log.Error("Unable to get services", "error", err)
 		return err
@@ -42,7 +43,7 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 	// Get return an empty service struct even when err != nil
 	// nil error means a service has been found
 	if err == nil {
-		return fmt.Errorf("Unable to create Kubernetes service, service already exists: %#v", svc)
+		return fmt.Errorf("unable to create Kubernetes service, service already exists: %#v", svc)
 	}
 
 	svc = &v1.Service{
@@ -59,9 +60,9 @@ func (i *Integration) Register(id string, name string, srcPort, dstPort int) err
 	}
 
 	// create the service
-	svc, err = clientset.CoreV1().Services(i.namespace).Create(svc)
+	_, err = clientset.CoreV1().Services(i.namespace).Create(context.TODO(), svc, metav1.CreateOptions{})
 	if err != nil {
-		return fmt.Errorf("Unable to create Kubernetes service: %s", err)
+		return fmt.Errorf("unable to create Kubernetes service: %s", err)
 	}
 
 	return nil
@@ -75,7 +76,7 @@ func (i *Integration) Deregister(id string) error {
 		return err
 	}
 
-	err = clientset.CoreV1().Services(i.namespace).Delete(id, &metav1.DeleteOptions{})
+	err = clientset.CoreV1().Services(i.namespace).Delete(context.TODO(), id, metav1.DeleteOptions{})
 	if err != nil {
 		i.log.Error("Unable to remove Kubernetes service", "error", err)
 		return err

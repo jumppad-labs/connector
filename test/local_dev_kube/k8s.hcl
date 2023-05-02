@@ -15,22 +15,6 @@ k8s_cluster "connector" {
   }
 }
 
-k8s_ingress "localconnector" {
-  cluster   = "k8s_cluster.connector"
-  namespace = "shipyard-test"
-  service   = "localconnector"
-
-  network {
-    name = "network.local"
-  }
-
-  port {
-    local  = 9997
-    remote = 9997
-    host   = 9997
-  }
-}
-
 output "KUBECONFIG" {
   value = k8s_config("connector")
 }

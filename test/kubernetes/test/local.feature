@@ -4,7 +4,7 @@ Feature: Local Connector Kubernetes
   and a local connector in Docker
   and try to access a service
 
-Scenario: Expose multiple local servics to Remote connector
+Scenario: Expose multiple local and remote servics to a Kubernetes connector
   Given I have a running blueprint
   Then the following resources should be running
     | name                      | type          |
@@ -15,13 +15,27 @@ Scenario: Expose multiple local servics to Remote connector
     #!/bin/bash
     sleep 10
 
-    echo "Expose local service to remote server"
+    echo "Expose local connector API to kubernetes"
+
+    ## Create a service that exposes local port 9091 as a kubernetes service
+    ## localservice.shipyard-test.svc:9997
     curl -v -k https://localhost:9091/expose -d \
-      '{ "name":"localconnector",
+      '{ "name":"localservice",
          "source_port": 9997,
-         "remote_connector_addr": "connector.ingress.shipyard.run:19090",
+         "remote_connector_addr": "server.connector.k8s-cluster.shipyard.run:30090",
          "destination_addr": "localhost:9091",
          "type": "local"
+       }'
+    
+    echo "Expose kubernetes service to local machine"
+    ## Create a service that exposes local port 9998 to the kubernetes service
+    ## localservice.shipyard-test.svc:9997 
+    curl -v -k https://localhost:9091/expose -d \
+      '{ "name":"remoteservice",
+         "source_port": 9998,
+         "remote_connector_addr": "server.connector.k8s-cluster.shipyard.run:30090",
+         "destination_addr": "localservice.shipyard-test.svc:9997",
+         "type": "remote"
        }'
     ```
   Then I expect the exit code to be 0
@@ -29,6 +43,10 @@ Scenario: Expose multiple local servics to Remote connector
   ```
   #!/bin/bash
   sleep 10
-  curl -k -v https://localhost:9997/health
+
+  ## Curl the local connector listener, this will make a connection to the 
+  ## remote connector service localservice.shipyard-test.svc:9997 which in 
+  ## turn is pointed at the local service localhost:9091
+  curl -k -v https://localhost:9998/health
   ```
   Then I expect the exit code to be 0

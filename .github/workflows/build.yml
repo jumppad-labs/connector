@@ -12,6 +12,12 @@ jobs:
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
+      
+      -
+        name: Set up Go
+        uses: actions/setup-go@v1
+        with:
+          go-version: 1.19
 
       - name: Get dependencies
         run: |
@@ -22,18 +28,15 @@ jobs:
         run: |
           make unit_test
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v1
-        with:
-          version: v0.147.2
-          args: release --rm-dist --snapshot
+      - name: Build
+        run: |
+          make snapshot
 
       - uses: actions/upload-artifact@v2
         with:
           name: connector
           path: |
             ./dist
-            ./dist/*.tar.gz
 
   functional_test:
     name: Functional Test

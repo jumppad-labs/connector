@@ -5,15 +5,18 @@ metadata:
   name: connector
   namespace: shipyard-test
 spec:
+  type: NodePort
   selector:
     app: connector
   ports:
-    - port: 19090
+    - port: 30090
       targetPort: 9090
+      nodePort: 30090
       name: http
-    - port: 19091
+    - port: 30091
       targetPort: 9091
       name: grpc
+      nodePort: 30091
 
 ---
 apiVersion: apps/v1

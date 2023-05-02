@@ -117,30 +117,36 @@ type serverStruct struct {
 	Cleanup     func()
 }
 
-var servers []*serverStruct
+func setupServers(t *testing.T) (string, *string, []*serverStruct) {
+	randSource := rand.NewSource(time.Now().UnixNano())
+	randGen := rand.New(randSource)
 
-func setupServers(t *testing.T) (string, *string) {
-	p1 := rand.Intn(20000) + 40000
-	p2 := rand.Intn(20000) + 40000
-	p3 := rand.Intn(20000) + 40000
+	p1 := randGen.Intn(2000) + 40000
+	p2 := randGen.Intn(2000) + 40000
+	p3 := randGen.Intn(2000) + 40000
 
 	a1 := fmt.Sprintf("localhost:%d", p1)
 	a2 := fmt.Sprintf("localhost:%d", p2)
 	a3 := fmt.Sprintf("localhost:%d", p3)
+
+	fmt.Println("a1", a1)
+	fmt.Println("a2", a2)
+	fmt.Println("a3", a3)
 
 	// local server
 	s1, m1, c1 := createServer(t, a1, "server_local_1")
 	s2, m2, c2 := createServer(t, a2, "server_local_2")
 	s3, m3, c3 := createServer(t, a3, "server_local_3")
 
-	servers = []*serverStruct{
+	servers := []*serverStruct{
 		{s1, p1, a1, m1, c1},
 		{s2, p2, a2, m2, c2},
 		{s3, p3, a3, m3, c3},
 	}
 
 	// setup the local endpoint
-	return startLocalServer(t)
+	addr, body := startLocalServer(t)
+	return addr, body, servers
 }
 
 func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
@@ -169,13 +175,13 @@ func createClient(t *testing.T, addr string) shipyard.RemoteConnectionClient {
 	return shipyard.NewRemoteConnectionClient(conn)
 }
 
-func setupTests(t *testing.T) (shipyard.RemoteConnectionClient, string, *string) {
-	tsAddr, tsData := setupServers(t)
-	return createClient(t, servers[0].Address), tsAddr, tsData
+func setupTests(t *testing.T) (shipyard.RemoteConnectionClient, string, *string, []*serverStruct) {
+	tsAddr, tsData, servers := setupServers(t)
+	return createClient(t, servers[0].Address), tsAddr, tsData, servers
 }
 
 func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -200,7 +206,7 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 }
 
 func TestExposeRemoteServiceCallsIntegration(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -223,7 +229,7 @@ func TestExposeRemoteServiceCallsIntegration(t *testing.T) {
 }
 
 func TestShutdownRemovesLocalListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -256,7 +262,7 @@ func TestShutdownRemovesLocalListener(t *testing.T) {
 }
 
 func TestShutdownRemovesRemoteListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -289,7 +295,7 @@ func TestShutdownRemovesRemoteListener(t *testing.T) {
 }
 
 func TestExposeRemoteServiceCreatesLocalListener2(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -314,7 +320,7 @@ func TestExposeRemoteServiceCreatesLocalListener2(t *testing.T) {
 }
 
 func TestExposeRemoteServiceUpdatesStatus(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -350,7 +356,7 @@ func TestExposeRemoteServiceUpdatesStatus(t *testing.T) {
 }
 
 func TestReconfigureRemoteServiceUpdatesListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -447,7 +453,7 @@ func TestReconfigureRemoteServiceUpdatesListener(t *testing.T) {
 }
 
 func TestExposeRemoteDuplicateReturnsError(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -478,7 +484,7 @@ func TestExposeRemoteDuplicateReturnsError(t *testing.T) {
 }
 
 func TestExposeLocalDuplicateReturnsError(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -509,7 +515,7 @@ func TestExposeLocalDuplicateReturnsError(t *testing.T) {
 }
 
 func TestExposeLocalDifferentServersReturnsOK(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -540,7 +546,7 @@ func TestExposeLocalDifferentServersReturnsOK(t *testing.T) {
 }
 
 func TestExposeLocalDifferentConnectionsReturnsError(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 	c2 := createClient(t, servers[1].Address)
 
 	p := int32(rand.Intn(10000) + 30000)
@@ -606,7 +612,7 @@ func TestExposeLocalDifferentConnectionsReturnsError(t *testing.T) {
 }
 
 func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -652,7 +658,7 @@ func TestDestroyRemoteServiceRemovesLocalListener(t *testing.T) {
 }
 
 func TestDisconnectRemovesRemoteListenerThenReconnects(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -696,7 +702,7 @@ func TestDisconnectRemovesRemoteListenerThenReconnects(t *testing.T) {
 }
 
 func TestDestroyRemoteServiceRemovesLocalIntegration(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -740,7 +746,7 @@ func TestDestroyRemoteServiceRemovesLocalIntegration(t *testing.T) {
 }
 
 func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -765,7 +771,7 @@ func TestExposeLocalServiceCreatesRemoteListener(t *testing.T) {
 }
 
 func TestExposeLocalServiceCallsRemoteIntegration(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -788,7 +794,7 @@ func TestExposeLocalServiceCallsRemoteIntegration(t *testing.T) {
 }
 
 func TestDestroyLocalServiceRemovesRemoteListener(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -821,7 +827,7 @@ func TestDestroyLocalServiceRemovesRemoteListener(t *testing.T) {
 }
 
 func TestDestroyLocalServiceRemovesRemoteIntegration(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -860,7 +866,7 @@ func TestExposeRemoteServiceCreatesRemoteConnection(t *testing.T) {
 }
 
 func TestMessageToRemoteEndpointCallsLocalService(t *testing.T) {
-	c, tsAddr, _ := setupTests(t)
+	c, tsAddr, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -893,7 +899,7 @@ func TestMessageToRemoteEndpointCallsLocalService(t *testing.T) {
 }
 
 func TestMessageToRemoteEndpointCallsLocalServiceAndCallsAddressLookup(t *testing.T) {
-	c, tsAddr, _ := setupTests(t)
+	c, tsAddr, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -924,7 +930,7 @@ func TestMessageToRemoteEndpointCallsLocalServiceAndCallsAddressLookup(t *testin
 }
 
 func TestMessageToRemoteEndpointCallsLocalServiceAndReceivesErrorFromAddressLookup(t *testing.T) {
-	c, tsAddr, _ := setupTests(t)
+	c, tsAddr, _, servers := setupTests(t)
 
 	servers[1].Integration.ExpectedCalls = []*mock.Call{}
 	servers[1].Integration.On("Register", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
@@ -960,7 +966,7 @@ func TestMessageToRemoteEndpointCallsLocalServiceAndReceivesErrorFromAddressLook
 }
 
 func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {
-	c, tsAddr, _ := setupTests(t)
+	c, tsAddr, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
@@ -991,7 +997,7 @@ func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {
 }
 
 func TestMessageToNonExistantEndpointRetrurnsError(t *testing.T) {
-	c, _, _ := setupTests(t)
+	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 	p2 := int32(rand.Intn(10000) + 30000)
@@ -1018,7 +1024,7 @@ func TestMessageToNonExistantEndpointRetrurnsError(t *testing.T) {
 }
 
 func TestListServices(t *testing.T) {
-	c, tsAddr, _ := setupTests(t)
+	c, tsAddr, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)
 
