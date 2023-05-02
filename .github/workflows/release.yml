@@ -6,10 +6,17 @@ on:
        - 'v*'
     branches:
       - 'dev'
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  goreleaser:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+       contents: read
+       packages: write
+
     steps:
       -
         name: Checkout
@@ -50,7 +57,7 @@ jobs:
         name: Build and push
         run: |
           docker buildx build --platform linux/arm64,linux/amd64 \
-            -t shipyardrun/connector:${GITHUB_REF##*/} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./dist \
             --push
