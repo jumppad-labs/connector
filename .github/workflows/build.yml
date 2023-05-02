@@ -76,8 +76,8 @@ jobs:
       - name: Install Deps
         run: |
           curl https://shipyard.run/install | bash
-          echo "${GITHUB_WORKSPACE}/dist/connector_linux_amd64" >> $GITHUB_PATH
-          chmod +x ${GITHUB_WORKSPACE}/dist/connector_linux_amd64/connector
+          echo "${GITHUB_WORKSPACE}/dist/linux_amd64" >> $GITHUB_PATH
+          chmod +x ${GITHUB_WORKSPACE}/dist/linux_amd64/connector
 
       - name: ${{ matrix.folder }}
         run: |
