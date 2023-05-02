@@ -101,3 +101,7 @@ func (i *Integration) createClient() (*kubernetes.Clientset, error) {
 
 	return clientset, nil
 }
+
+func (i *Integration) LookupAddress(service string) (string, error) {
+	return service, nil
+}

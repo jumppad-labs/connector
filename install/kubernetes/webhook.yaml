@@ -1,0 +1,24 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: consul-release-controller-webhook
+  labels:
+    app: consul-release-controller-webhook
+    kind: mutator
+webhooks:
+  - name: consul-release-controller.consul.io
+    failurePolicy: ALLOW
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    clientConfig:
+      service:
+        name: controller-webhook
+        namespace: shipyard
+        path: /validate-v1-service
+        port: 9091
+    rules:
+      - operations: ["CREATE", "UPDATE"]
+        apiGroups: ["*"]
+        apiVersions: ["*"]
+        resources: ["services"]

@@ -9,8 +9,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
-	"github.com/shipyard-run/connector/http/handlers"
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/http/handlers"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )

@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/shipyard-run/connector/integrations"
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/integrations"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -36,6 +36,7 @@ func createServer(t *testing.T, addr, name string) (*Server, *integrations.Mock,
 	mi := &integrations.Mock{}
 	mi.On("Register", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
 	mi.On("Deregister", mock.Anything).Return(nil)
+	mi.On("LookupAddress", mock.Anything).Return("", nil)
 
 	output := ioutil.Discard
 
@@ -116,7 +117,7 @@ type serverStruct struct {
 	Cleanup     func()
 }
 
-var servers []serverStruct
+var servers []*serverStruct
 
 func setupServers(t *testing.T) (string, *string) {
 	p1 := rand.Intn(20000) + 40000
@@ -132,7 +133,7 @@ func setupServers(t *testing.T) (string, *string) {
 	s2, m2, c2 := createServer(t, a2, "server_local_2")
 	s3, m3, c3 := createServer(t, a3, "server_local_3")
 
-	servers = []serverStruct{
+	servers = []*serverStruct{
 		{s1, p1, a1, m1, c1},
 		{s2, p2, a2, m2, c2},
 		{s3, p3, a3, m3, c3},
@@ -879,14 +880,83 @@ func TestMessageToRemoteEndpointCallsLocalService(t *testing.T) {
 	// wait while to ensure all setup
 	time.Sleep(100 * time.Millisecond)
 
+	remoteAddr := fmt.Sprintf("http://localhost:%d", p)
+
 	// call the remote endpoint
-	httpResp, err := http.DefaultClient.Get(fmt.Sprintf("http://localhost:%d", p))
+	httpResp, err := http.DefaultClient.Get(remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
 
-	httpResp, err = http.DefaultClient.Get(fmt.Sprintf("http://localhost:%d", p))
+	httpResp, err = http.DefaultClient.Get(remoteAddr)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+}
+
+func TestMessageToRemoteEndpointCallsLocalServiceAndCallsAddressLookup(t *testing.T) {
+	c, tsAddr, _ := setupTests(t)
+
+	p := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test 1",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     tsAddr,
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// wait while to ensure all setup
+	time.Sleep(100 * time.Millisecond)
+
+	remoteAddr := fmt.Sprintf("http://localhost:%d", p)
+
+	// call the remote endpoint
+	_, err = http.DefaultClient.Get(remoteAddr)
+	require.NoError(t, err)
+
+	// check the integration for the address has been called
+	servers[1].Integration.AssertCalled(t, "LookupAddress", tsAddr)
+}
+
+func TestMessageToRemoteEndpointCallsLocalServiceAndReceivesErrorFromAddressLookup(t *testing.T) {
+	c, tsAddr, _ := setupTests(t)
+
+	servers[1].Integration.ExpectedCalls = []*mock.Call{}
+	servers[1].Integration.On("Register", mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	servers[1].Integration.On("Deregister", mock.Anything).Return(nil)
+	servers[1].Integration.On("LookupAddress", mock.Anything).Return("", fmt.Errorf("unable to locate address"))
+
+	p := int32(rand.Intn(10000) + 30000)
+
+	resp, err := c.ExposeService(context.Background(), &shipyard.ExposeRequest{
+		Service: &shipyard.Service{
+			Name:                "Test 1",
+			RemoteConnectorAddr: servers[1].Address,
+			SourcePort:          p,
+			DestinationAddr:     tsAddr,
+			Type:                shipyard.ServiceType_REMOTE,
+		},
+	})
+
+	require.NoError(t, err)
+	require.NotEmpty(t, resp.Id)
+
+	// wait while to ensure all setup
+	time.Sleep(100 * time.Millisecond)
+
+	remoteAddr := fmt.Sprintf("http://localhost:%d", p)
+
+	// call the remote endpoint
+	_, err = http.DefaultClient.Get(remoteAddr)
+	require.Error(t, err)
+
+	// check the integration for the address has been called
+	servers[1].Integration.AssertCalled(t, "LookupAddress", tsAddr)
 }
 
 func TestMessageToLocalEndpointCallsRemoteService(t *testing.T) {

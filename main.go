@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/shipyard-run/connector/cmd"
+	"github.com/jumppad-labs/connector/cmd"
 )
 
 var Version = "dev"

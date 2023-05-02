@@ -9,7 +9,7 @@ import (
 
 	"github.com/go-playground/validator/v10"
 	"github.com/hashicorp/go-hclog"
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 )
 
 // Expose handler is responsible for exposing new endpoints

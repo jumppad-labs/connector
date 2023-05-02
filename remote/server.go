@@ -10,8 +10,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hashicorp/go-hclog"
-	"github.com/shipyard-run/connector/integrations"
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/integrations"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -222,4 +222,12 @@ func (s *Server) removeIntegration(name string) error {
 	}
 
 	return nil
+}
+
+func (s *Server) lookupIntegration(addr string) (string, error) {
+	if s.integration != nil {
+		return s.integration.LookupAddress(addr)
+	}
+
+	return "", nil
 }

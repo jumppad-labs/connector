@@ -8,7 +8,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -318,6 +318,7 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 
 			// otherwise create a new upstream connection
 			var err error
+
 			newCon, err := net.Dial("tcp", svc.detail.DestinationAddr)
 			if err != nil {
 				s.log.Error(

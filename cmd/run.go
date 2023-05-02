@@ -12,11 +12,13 @@ import (
 	"os/signal"
 
 	"github.com/hashicorp/go-hclog"
-	"github.com/shipyard-run/connector/http"
-	"github.com/shipyard-run/connector/integrations"
-	"github.com/shipyard-run/connector/integrations/k8s"
-	"github.com/shipyard-run/connector/protos/shipyard"
-	"github.com/shipyard-run/connector/remote"
+	"github.com/jumppad-labs/connector/http"
+	"github.com/jumppad-labs/connector/integrations"
+	"github.com/jumppad-labs/connector/integrations/k8s"
+	"github.com/jumppad-labs/connector/integrations/local"
+	"github.com/jumppad-labs/connector/integrations/nomad"
+	"github.com/jumppad-labs/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/remote"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -38,6 +40,10 @@ var runCmd = &cobra.Command{
 		switch integration {
 		case "kubernetes":
 			in = k8s.New(l.Named("k8s_integration"), namespace)
+		case "nomad":
+			in = nomad.New(l.Named("nomad_integration"))
+		default:
+			in = local.New(l.Named("local_integration"))
 		}
 
 		grpcServer := grpc.NewServer()
@@ -122,6 +128,7 @@ var logLevel string
 var integration string
 var namespace string
 var verifyClient bool
+var disableLocalExpose bool
 
 func init() {
 	runCmd.Flags().StringVarP(&grpcBindAddr, "grpc-bind", "", ":9090", "Bind address for the gRPC API")
@@ -132,5 +139,6 @@ func init() {
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
 	runCmd.Flags().StringVarP(&integration, "integration", "", "", "Integration to use [kubernetes]")
 	runCmd.Flags().StringVarP(&namespace, "namespace", "", "shipyard", "Kubernetes namespace when using Kubernetes integration, default: shipyard")
-	runCmd.Flags().BoolVarP(&verifyClient, "verify-client-certs", "", true, "Verify client cert has been signed by same root as CA")
+	runCmd.Flags().BoolVarP(&verifyClient, "disableLocalExpose", "", false, "Disable exposing local services to remote connections")
+	runCmd.Flags().BoolVarP(&verifyClient, "disable-remote-expose", "", true, "Verify client cert has been signed by same root as CA")
 }

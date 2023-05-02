@@ -19,3 +19,4 @@ certs/
 coverage.txt
 gotestsum
 .envrc
+.vscode

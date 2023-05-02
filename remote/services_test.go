@@ -3,8 +3,8 @@ package remote
 import (
 	"testing"
 
-	"github.com/shipyard-run/connector/protos/shipyard"
-	"github.com/tj/assert"
+	"github.com/jumppad-labs/connector/protos/shipyard"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestContainsNotFindsRemoteService(t *testing.T) {

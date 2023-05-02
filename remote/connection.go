@@ -3,7 +3,7 @@ package remote
 import (
 	"io"
 
-	"github.com/shipyard-run/connector/protos/shipyard"
+	"github.com/jumppad-labs/connector/protos/shipyard"
 )
 
 func (s *Server) handleConnectionRead(serviceID string, si *streamInfo, svc *service, conn *bufferedConn) {

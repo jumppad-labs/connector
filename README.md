@@ -1,6 +1,6 @@
 # Connector
-![Build](https://github.com/shipyard-run/connector/workflows/Build/badge.svg)
-[![codecov](https://codecov.io/gh/shipyard-run/connector/branch/master/graph/badge.svg)](https://codecov.io/gh/shipyard-run/connector)
+![Build](https://github.com/jumppad-labs/connector/workflows/Build/badge.svg)
+[![codecov](https://codecov.io/gh/jumppad-labs/connector/branch/master/graph/badge.svg)](https://codecov.io/gh/jumppad-labs/connector)
 
 Connector allows you to expose local TCP sockets to remote machines, and access TCP sockets running on remote machines locally. It works by tunneling the TCP connection over gRPC between two servers. Connector was build to be used with Shipyard but will work standalone to allow remote services access local applications. One use for this is when you are developing a local service and would like to connect it to a larger microservice environment which may be running in a remote Kubernetes cluster.
 
@@ -299,7 +299,7 @@ Feature: Remote Connector Simple
   I should setup a remote and a local
   and try to access a service
 
-  Scenario: Expose Local Service to Remote Server                           # /home/nicj/go/src/github.com/shipyard-run/connector/test/simple/test/connector.feature:6
+  Scenario: Expose Local Service to Remote Server                           # /home/nicj/go/src/github.com/jumppad-labs/connector/test/simple/test/connector.feature:6
     Given I have a running blueprint                                        # test.go:181 -> *CucumberRunner
     Then the following resources should be running                          # test.go:262 -> *CucumberRunner
       | name             | type      |
@@ -324,7 +324,7 @@ Feature: Remote Connector Simple
     And a HTTP call to "http://localhost:13000" should result in status 200 # test.go:350 -> *CucumberRunner
 
 
-  Scenario: Expose Remote Service to Localhost                              # /home/nicj/go/src/github.com/shipyard-run/connector/test/simple/test/connector.feature:30
+  Scenario: Expose Remote Service to Localhost                              # /home/nicj/go/src/github.com/jumppad-labs/connector/test/simple/test/connector.feature:30
     Given I have a running blueprint                                        # test.go:181 -> *CucumberRunner
     Then the following resources should be running                          # test.go:262 -> *CucumberRunner
       | name             | type      |

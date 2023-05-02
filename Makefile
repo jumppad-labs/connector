@@ -68,3 +68,24 @@ run_dev:
 
 setup_local_dev:
 	curl -vv -k https://localhost:9091/expose -d '{"name":"test1", "source_port": 13000, "remote_connector_addr": "remote-connector.container.shipyard.run:9092", "destination_addr": "local-service.container.shipyard.run:9094", "type": "local"}'
+
+run_local:
+	go run main.go \
+		run \
+		--grpc-bind=:9090 \
+		--http-bind=:9091 \
+		--log-level=debug \
+		--root-cert-path=./install/nomad/certs/root.cert \
+		--server-cert-path=./install/nomad/certs/local/leaf.cert \
+		--server-key-path=./install/nomad/certs/local/leaf.key
+
+run_nomad:
+	go run main.go \
+		run \
+		--grpc-bind=:19090 \
+		--http-bind=:19091 \
+		--log-level=debug \
+		--root-cert-path=./install/nomad/certs/root.cert \
+		--server-cert-path=./install/nomad/certs/nomad/leaf.cert \
+		--server-key-path=./install/nomad/certs/nomad/leaf.key \
+		--integration=nomad
