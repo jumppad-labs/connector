@@ -15,7 +15,6 @@ install_local:
 	go build -o ${GOPATH}/bin/connector .
 
 snapshot:
-	SHA=$(shell "git rev-parse HEAD")
 	rm -rf ./dist
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/linux_amd64/connector main.go
 	CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.build=$(GIT_SHA)" -o ./dist/darwin_amd64/connector main.go
