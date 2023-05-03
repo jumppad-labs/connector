@@ -94,6 +94,7 @@ ${server_ca}
         image = "connector:dev"
 
         ports   = ["http", "grpc"]
+        command = "/connector"
         args = [
           "run",
 		      "--grpc-bind=:30090",
