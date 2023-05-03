@@ -129,10 +129,6 @@ func setupServers(t *testing.T) (string, *string, []*serverStruct) {
 	a2 := fmt.Sprintf("localhost:%d", p2)
 	a3 := fmt.Sprintf("localhost:%d", p3)
 
-	fmt.Println("a1", a1)
-	fmt.Println("a2", a2)
-	fmt.Println("a3", a3)
-
 	// local server
 	s1, m1, c1 := createServer(t, a1, "server_local_1")
 	s2, m2, c2 := createServer(t, a2, "server_local_2")

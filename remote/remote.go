@@ -233,7 +233,9 @@ func (s *Server) handleDataMessage(si *streamInfo, msg *shipyard.OpenData, svr s
 				"message", "Unable to find address for upstream",
 				"service_id", msg.ServiceId,
 				"connection_id", msg.ConnectionId,
-				"addr", svc.detail.DestinationAddr)
+				"addr", svc.detail.DestinationAddr,
+				"error", err,
+			)
 
 			si.grpcConn.Send(
 				&shipyard.OpenData{
@@ -253,7 +255,7 @@ func (s *Server) handleDataMessage(si *streamInfo, msg *shipyard.OpenData, svr s
 				"message", "Unable to create connection to upstream",
 				"service_id", msg.ServiceId,
 				"connection_id", msg.ConnectionId,
-				"addr", svc.detail.DestinationAddr)
+				"addr", addr)
 
 			svr.Send(
 				&shipyard.OpenData{

@@ -4,7 +4,7 @@ container "remote_connector" {
   image {
     name = var.connector_image
   }
-  
+
   command = [
     "/connector",
     "run",
@@ -17,21 +17,21 @@ container "remote_connector" {
   ]
 
   port_range {
-    range = "9092-9093"
+    range       = "9092-9093"
     enable_host = true
   }
 
   port_range {
-    range = "13000-13010"
+    range       = "13000-13010"
     enable_host = true
   }
-  
+
   network {
     name = "network.local"
   }
-  
+
   volume {
-    source = "./certs"
+    source      = "./certs"
     destination = "/certs"
   }
 }
@@ -42,16 +42,16 @@ container "remote_service" {
   }
 
   env_var = {
-    "NAME": "Remote Service"
-    "LISTEN_ADDR": "0.0.0.0:9095"
+    "NAME" : "Remote Service"
+    "LISTEN_ADDR" : "0.0.0.0:9095"
   }
 
   port {
-    local = 9095
+    local  = 9095
     remote = 9095
-    host = 9095
+    host   = 9095
   }
-  
+
   network {
     name = "network.local"
   }

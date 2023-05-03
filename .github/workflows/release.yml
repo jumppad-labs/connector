@@ -6,10 +6,17 @@ on:
        - 'v*'
     branches:
       - 'dev'
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  goreleaser:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+       contents: read
+       packages: write
+
     steps:
       -
         name: Checkout
@@ -37,7 +44,7 @@ jobs:
           name: connector
           path: |
             ./dist
-      
+
       -
         name: Setup Docker Multi-Arch Builder
         run: |
@@ -50,7 +57,29 @@ jobs:
         name: Build and push
         run: |
           docker buildx build --platform linux/arm64,linux/amd64 \
-            -t shipyardrun/connector:${GITHUB_REF##*/} \
+            -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_REF##*/} \
             -f ./Dockerfile \
             ./dist \
             --push
+
+      - 
+        name: Zip Artifacts
+        if: github.ref != 'refs/heads/dev'
+        run: |
+          zip ./dist/darwin_amd64.zip ./dist/darwin_amd64/connector
+          zip ./dist/linux_amd64.zip ./dist/linux_amd64/connector
+          zip ./dist/darwin_arm64.zip ./dist/darwin_arm64/connector
+          zip ./dist/linux_arm64.zip ./dist/linux_arm64/connector
+
+      - 
+        name: Create Release 
+        if: github.ref != 'refs/heads/dev'
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            ./dist/darwin_amd64.zip
+            ./dist/linux_amd64.zip
+            ./dist/darwin_arm64.zip
+            ./dist/linux_arm64.zip
