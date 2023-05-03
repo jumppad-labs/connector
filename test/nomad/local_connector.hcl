@@ -6,6 +6,7 @@ container "local_connector" {
   }
 
   command = [
+    "/connector",
     "run",
     "--grpc-bind=:9090",
     "--http-bind=:9091",
