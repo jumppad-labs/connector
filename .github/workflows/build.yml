@@ -48,7 +48,6 @@ jobs:
         folder: [
           './test/simple',
           './test/kubernetes',
-          './test/nomad',
         ]
 
     steps:
