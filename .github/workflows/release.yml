@@ -44,7 +44,7 @@ jobs:
           name: connector
           path: |
             ./dist
-      
+
       -
         name: Setup Docker Multi-Arch Builder
         run: |
@@ -61,3 +61,25 @@ jobs:
             -f ./Dockerfile \
             ./dist \
             --push
+
+      - 
+        name: Zip Artifacts
+        if: github.ref != 'refs/heads/dev'
+        run: |
+          zip ./dist/darwin_amd64.zip ./dist/darwin_amd64/connector
+          zip ./dist/linux_amd64.zip ./dist/linux_amd64/connector
+          zip ./dist/darwin_arm64.zip ./dist/darwin_arm64/connector
+          zip ./dist/linux_arm64.zip ./dist/linux_arm64/connector
+
+      - 
+        name: Create Release 
+        if: github.ref != 'refs/heads/dev'
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          prerelease: false
+          files: |
+            ./dist/darwin_amd64.zip
+            ./dist/linux_amd64.zip
+            ./dist/darwin_arm64.zip
+            ./dist/linux_arm64.zip
