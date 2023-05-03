@@ -40,8 +40,10 @@ var runCmd = &cobra.Command{
 		switch integration {
 		case "kubernetes":
 			in = k8s.New(l.Named("k8s_integration"), namespace)
+			l.Info("Loading integration Kubernetes")
 		case "nomad":
 			in = nomad.New(l.Named("nomad_integration"))
+			l.Info("Loading integration Nomad")
 		default:
 			in = local.New(l.Named("local_integration"))
 		}

@@ -20,10 +20,10 @@ $COMMAND generate-certs --ca ./certs
 
 # Define the DNS name and Ports for the public entrypoint for the Nomad server
 NOMAD_PUBLIC_ADDRESS="localhost"
-NOMAD_PUBLIC_ADDRESS_API="${K8S_PUBLIC_ADDRESS}:19090"
-NOMAD_PUBLIC_ADDRESS_GRPC="${K8S_PUBLIC_ADDRESS}:19091"
+NOMAD_PUBLIC_ADDRESS_API="${NOMAD_PUBLIC_ADDRESS}:30090"
+NOMAD_PUBLIC_ADDRESS_GRPC="${NOMAD_PUBLIC_ADDRESS}:30091"
 
-# Generate the leaf certs for the k8s connector
+# Generate the leaf certs for the nomad connector
 $COMMAND generate-certs \
           --leaf \
           --ip-address 127.0.0.1 \
@@ -33,8 +33,8 @@ $COMMAND generate-certs \
           --dns-name ":9090" \
           --dns-name ":9091" \
           --dns-name "connector" \
-					--dns-name "connector.ingress.shipyard.run:19090" \
-					--dns-name "connector.ingress.shipyard.run:19091" \
+					--dns-name "server.dev.nomad-cluster.shipyard.run:30090" \
+					--dns-name "server.dev.nomad-cluster.shipyard.run:30091" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
           --root-ca ./certs/root.cert \

@@ -47,6 +47,7 @@ push_multi_docker:
 build_and_test: build_docker
 	cd test/simple && shipyard test --var connector_image=connector:dev
 	cd test/kubernetes && shipyard test --var connector_image=connector:dev
+	cd test/nomad && shipyard test --var connector_image=connector:dev
 
 build_dev:
 	docker build \
@@ -75,7 +76,7 @@ run_nomad:
 		run \
 		--grpc-bind=:19090 \
 		--http-bind=:19091 \
-		--log-level=debug \
+		--log-level=trace \
 		--root-cert-path=./install/nomad/certs/root.cert \
 		--server-cert-path=./install/nomad/certs/nomad/leaf.cert \
 		--server-key-path=./install/nomad/certs/nomad/leaf.key \
