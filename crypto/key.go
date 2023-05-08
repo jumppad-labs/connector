@@ -18,7 +18,7 @@ type KeyReaderWriter interface {
 
 type KeyPair struct {
 	Private *PrivateKey
-	Public  KeyReaderWriter
+	Public  *PublicKey
 }
 
 func NewKeyPair() *KeyPair {
@@ -30,6 +30,10 @@ type PrivateKey struct {
 	*rsa.PrivateKey
 }
 
+type PublicKey struct {
+	*rsa.PublicKey
+}
+
 // GenerateKeyPair creates a new RSA key pair
 func GenerateKeyPair() (*KeyPair, error) {
 	privKey, err := rsa.GenerateKey(rand.Reader, 4096)
@@ -37,7 +41,7 @@ func GenerateKeyPair() (*KeyPair, error) {
 		return nil, fmt.Errorf("generating random key: %v", err)
 	}
 
-	return &KeyPair{Private: &PrivateKey{privKey}}, nil
+	return &KeyPair{Private: &PrivateKey{privKey}, Public: &PublicKey{&privKey.PublicKey}}, nil
 }
 
 func (k *PrivateKey) PEMBlock() []byte {
@@ -58,14 +62,14 @@ func (k *PrivateKey) String() string {
 func (k *PrivateKey) ReadFile(path string) error {
 	d, err := ioutil.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("Unable to read file at path: %s", path)
+		return fmt.Errorf("unable to read key at path: %s", path)
 	}
 
 	pb, _ := pem.Decode(d)
 
 	pk, err := x509.ParsePKCS1PrivateKey(pb.Bytes)
 	if err != nil {
-		return fmt.Errorf("Unable to decode file at path: %s", path)
+		return fmt.Errorf("unable to decode file at path: %s", path)
 	}
 
 	k.PrivateKey = pk
@@ -76,7 +80,30 @@ func (k *PrivateKey) ReadFile(path string) error {
 func (k *PrivateKey) WriteFile(path string) error {
 	err := ioutil.WriteFile(path, k.PEMBlock(), 0400)
 	if err != nil {
-		return fmt.Errorf("Unable to write CA to path %s: %s", path, err)
+		return fmt.Errorf("unable to write key to path %s: %s", path, err)
+	}
+
+	return nil
+}
+
+func (k PublicKey) PEMBlock() []byte {
+	pkb := &pem.Block{
+		Type:  "RSA PUBLIC KEY",
+		Bytes: x509.MarshalPKCS1PublicKey(k.PublicKey),
+	}
+
+	return pem.EncodeToMemory(pkb)
+}
+
+// String returns a PEM encoded version of the Key
+func (k *PublicKey) String() string {
+	return string(k.PEMBlock())
+}
+
+func (k *PublicKey) WriteFile(path string) error {
+	err := ioutil.WriteFile(path, k.PEMBlock(), 0400)
+	if err != nil {
+		return fmt.Errorf("unable to write key to path %s: %s", path, err)
 	}
 
 	return nil

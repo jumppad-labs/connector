@@ -8,7 +8,7 @@ Scenario: Expose multiple local and remote servics to a Kubernetes connector
   Given I have a running blueprint
   Then the following resources should be running
     | name                      | type          |
-    | dev                       | nomad_cluster   |
+    | test                       | nomad_cluster   |
     | local_connector           | container     |
   When I run the script
     ```

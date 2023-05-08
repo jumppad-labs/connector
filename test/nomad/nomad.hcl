@@ -1,10 +1,10 @@
-network "local" {
-  subnet = "10.5.0.0/16"
+network "test" {
+  subnet = "10.6.0.0/16"
 }
 
-nomad_cluster "dev" {
+nomad_cluster "test" {
   network {
-    name = "network.local"
+    name = "network.test"
   }
 
   image {
@@ -25,7 +25,7 @@ nomad_cluster "dev" {
 }
 
 nomad_job "fake_service" {
-  cluster = "nomad_cluster.dev"
+  cluster = "nomad_cluster.test"
 
   paths = ["./example.nomad"]
   health_check {

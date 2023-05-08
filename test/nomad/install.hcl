@@ -4,7 +4,7 @@ exec_remote "certs" {
   }
 
   network {
-    name = "network.local"
+    name = "network.test"
   }
 
   cmd = "/generate_certs.sh"
@@ -29,7 +29,7 @@ exec_remote "create_job" {
   }
 
   network {
-    name = "network.local"
+    name = "network.test"
   }
 
   cmd = "/generate_job.sh"
@@ -55,7 +55,7 @@ exec_remote "create_job" {
 
 nomad_job "connector" {
   depends_on = ["exec_remote.create_job"]
-  cluster    = "nomad_cluster.dev"
+  cluster    = "nomad_cluster.test"
 
   paths = ["./job/install.nomad"]
   health_check {
