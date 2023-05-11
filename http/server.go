@@ -22,15 +22,17 @@ type LocalServer struct {
 	bindAddress string
 	server      *gohttp.Server
 
-	tlsCAPath   string
+	tlsCAPath    string
+	tlsCAKeyPath string
+
 	tlsCertPath string
 	tlsKeyPath  string
 }
 
 // NewLocalServer creates a new local HTTP server which can be used
 // to expose gRPC server methods with JSON
-func NewLocalServer(tlsCAPath, tlsCertPath, tlsKeyPath, apiAddress, bindAddr string, l hclog.Logger) *LocalServer {
-	return &LocalServer{apiAddress: apiAddress, bindAddress: bindAddr, logger: l, tlsCAPath: tlsCAPath, tlsCertPath: tlsCertPath, tlsKeyPath: tlsKeyPath}
+func NewLocalServer(tlsCAPath, tlsCAKey, tlsCertPath, tlsKeyPath, apiAddress, bindAddr string, l hclog.Logger) *LocalServer {
+	return &LocalServer{apiAddress: apiAddress, bindAddress: bindAddr, logger: l, tlsCAPath: tlsCAPath, tlsCAKeyPath: tlsCAKey, tlsCertPath: tlsCertPath, tlsKeyPath: tlsKeyPath}
 }
 
 // Serve starts serving traffic
@@ -89,6 +91,9 @@ func (l *LocalServer) createHandlers() *mux.Router {
 
 	lh := handlers.NewList(cli, l.logger.Named("list_handler"))
 	r.Handle("/list", lh).Methods(gohttp.MethodGet)
+
+	ch := handlers.NewGenerateCertificate(l.logger.Named("certificate_handler"), l.tlsCAPath, l.tlsCAKeyPath)
+	r.Handle("/certificate", ch).Methods(gohttp.MethodPost)
 
 	return r
 }
