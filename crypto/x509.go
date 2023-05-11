@@ -10,6 +10,7 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net"
+	"net/url"
 	"time"
 )
 
@@ -84,10 +85,17 @@ func GenerateLeaf(name string, ipAddresses []string, dnsNames []string, rootCert
 	leafCertTmpl.IPAddresses = ips
 	leafCertTmpl.DNSNames = dnsNames
 
+	// generate a random spiffe id
+	spiffe, _ := url.Parse(fmt.Sprintf("spiffe://jumppad.dev/private/%d", time.Now().UnixNano()))
+	leafCertTmpl.URIs = []*url.URL{
+		spiffe,
+	}
+
 	certDER, err := x509.CreateCertificate(rand.Reader, leafCertTmpl, rootCert.Certificate, leafKey.Public(), rootKey)
 	if err != nil {
 		return nil, err
 	}
+
 	// parse the resulting certificate so we can use it again
 	cert, err := x509.ParseCertificate(certDER)
 	if err != nil {

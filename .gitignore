@@ -20,3 +20,5 @@ coverage.txt
 gotestsum
 .envrc
 .vscode
+./public_test
+./temp

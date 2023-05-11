@@ -68,7 +68,7 @@ func (c *Expose) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	// first get a client
-	c.logger.Info("Sending request to the local gRPC server")
+	c.logger.Info("Sending request to the local gRPC server", "request", cr)
 	t := shipyard.ServiceType_LOCAL
 	if cr.Type == "remote" {
 		t = shipyard.ServiceType_REMOTE
