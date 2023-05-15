@@ -16,13 +16,12 @@ type List struct {
 }
 
 type Service struct {
-	ID                  string `json:"id" validate:"required"`
-	Name                string `json:"name" validate:"required"`
-	SourcePort          int    `json:"source_port" validate:"required"`
-	RemoteConnectorAddr string `json:"remote_connector_addr" validate:"required"`
-	DestinationAddr     string `json:"destination_addr" validate:"required"`
-	Type                string `json:"type" validate:"oneof=local remote"`
-	Status              string `json:"status"`
+	ID                  string            `json:"id" validate:"required"`
+	RemoteConnectorAddr string            `json:"remote_connector_addr" validate:"required"`
+	Type                string            `json:"type" validate:"oneof=local remote"`
+	Status              string            `json:"status"`
+	Config              map[string]string `json:"config"`
+	Details             map[string]string `json:"details"`
 }
 
 // NewExpose creates a new Expose handler
@@ -43,12 +42,11 @@ func (l *List) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	for _, v := range svcs.Services {
 		s := Service{
 			ID:                  v.Id,
-			Name:                v.Name,
-			SourcePort:          int(v.SourcePort),
 			RemoteConnectorAddr: v.RemoteConnectorAddr,
-			DestinationAddr:     v.DestinationAddr,
 			Type:                v.Type.String(),
 			Status:              v.Status.String(),
+			Config:              v.Config,
+			Details:             v.Details,
 		}
 
 		services = append(services, s)

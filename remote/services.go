@@ -41,13 +41,23 @@ func (s *services) delete(key string) {
 	delete(s.svcs, key)
 }
 
+func mapEqual(src map[string]string, dst map[string]string) bool {
+	for k, v := range src {
+		if dstV := dst[k]; dstV != v {
+			return false
+		}
+	}
+
+	return true
+}
+
 func (s *services) contains(svc *service) bool {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
 	for _, r := range s.svcs {
 		// check to see if we already have a listener defined for this port
-		if svc.detail.SourcePort == r.detail.SourcePort &&
+		if mapEqual(svc.detail.Config, r.detail.Config) &&
 			r.detail.Type == shipyard.ServiceType_REMOTE {
 			return true
 		}
@@ -55,7 +65,7 @@ func (s *services) contains(svc *service) bool {
 		// check to see if there is a listener defined on the remote server for this port
 		if svc.detail.Type == shipyard.ServiceType_LOCAL &&
 			svc.detail.RemoteConnectorAddr == r.detail.RemoteConnectorAddr &&
-			svc.detail.SourcePort == r.detail.SourcePort {
+			mapEqual(svc.detail.Config, r.detail.Config) {
 			return true
 		}
 	}

@@ -201,7 +201,7 @@ func TestExposeRemoteServiceCreatesLocalListener(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestExposeRemoteServiceCallsIntegration(t *testing.T) {
+func TestExposeRemoteServiceCallsRegisterIntegration(t *testing.T) {
 	c, _, _, servers := setupTests(t)
 
 	p := int32(rand.Intn(10000) + 30000)

@@ -96,21 +96,22 @@ message ExposeRequest {
 message StatusUpdate {
   ServiceStatus status = 1;
   string message = 2;
+  string address = 3; // address of the service configured on the remote
+  map<string, string> config = 4; // integration specific configuration
 }
 
 message Service {
   string id = 1; // id for the service
-  string name = 2; // name of the service
-  string remoteConnectorAddr = 3; // address of the remote component for the service
-  string destinationAddr = 4; // address of the service being exposed
-  int32 sourcePort = 5; // local port to expose on
-  ServiceType type = 6; // is the service running on this machine or the remote machine
-  ServiceStatus status = 7;
+  string remoteConnectorAddr = 2; // address of the remote connector for the service
+  ServiceType type = 4; // is the service running on this machine or the remote machine
+  ServiceStatus status = 5;
+  map<string, string> config = 6; // integration specific configuration
+  map<string, string> details = 7; // configured details for the integration, this is returned from the remote
 }
 
 enum ServiceType {
-  LOCAL  = 0; // Service exists on local component
-  REMOTE = 1; // Service exists  on remote component
+  LOCAL  = 0; // Service exists on local connector
+  REMOTE = 1; // Service exists  on remote connector
 }
 
 enum ServiceStatus {

@@ -353,3 +353,102 @@ Feature: Remote Connector Simple
 10 steps (10 passed)
 39.4207831s
 ```
+
+## Integrations
+
+### General
+When configured to use the General integration the following configuration
+is required when exposing a service.
+
+```json
+{
+  "port": "port to listen on"
+}
+```
+
+### Kubernetes
+When configured to use the Kubernetes integration the following configuration
+is required when exposing a service.
+
+```json
+{
+  "name": "name of the service",
+  "port": "port for the service"
+}
+```
+
+### Nomad
+When configured to use the Nomad integration the following configuration
+is required when exposing a service.
+
+```json
+{
+  "job": "name of the job",
+  "group": "name of the group within the job",
+  "task": "name of the task in the group",
+  "port": "port for the service"
+}
+```
+
+### Authenticated
+When configured to use the Authenticated integration the following configuration
+is required when exposing a service.
+
+```json
+{
+  "id": "existing service id"
+  "auth_token": "auth token for the service"
+}
+```
+
+## Internal Function
+
+### Expose a local application to a remote connector
+
+#### Local
+* User calls ExposeService on local connector
+```go
+// server.go
+func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (*shipyard.ExposeResponse, error)
+
+// with the following payload
+{
+  remoteConnectorAddr = "myname" // remote connector to expose the service to
+  destinationAddr = "localhost:9090" // local location to expose
+  type = "local" // expose a local service to the remote
+  config = {
+    port = 9090
+  }
+}
+```
+
+* Service status is set to "Pending"
+* Establish a bidirectional stream to the remote connector
+* If new connection, loop over configured services and send `Expose` message to
+  remote connector
+```go
+// local.go 
+req.Message = &shipyard.OpenData_Expose{Expose: &shipyard.ExposeRequest{Service: svc.detail}}
+```
+
+#### Remote
+
+* Server receives `Expose` message
+```go
+// remote.go
+func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr shipyard.RemoteConnection_OpenStreamServer, m *shipyard.OpenData_Expose)
+```
+
+* Create TCP Listener on the remote
+* Start Listening for TCP data
+* Create any Integrations based on the integration plugin 
+* Send a StatusUpdate message back to the Local component containing the address 
+
+#### Local
+
+* Receive `StatusUpdate` message
+* Update local service details with the message
+```go
+// local.go
+func (s *Server) handleRemoteClosedMessage(si *streamInfo, msg *shipyard.OpenData, m *shipyard.OpenData_Closed)
+```

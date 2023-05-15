@@ -69,7 +69,7 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 			"message", "Service already exists, ignoring message",
 			"service_id", msg.ServiceId,
 			"connection_id", msg.ConnectionId,
-			"port", m.Expose.Service.SourcePort)
+		)
 
 		return
 	}
@@ -82,6 +82,35 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 
 	svc := newService()
 
+	// we need to flip the integration as if this is a LOCAL expose then the integration
+	// address is the remote part
+	sd := "LOCAL"
+	if m.Expose.Service.Type.String() == "LOCAL" {
+		sd = "REMOTE"
+	}
+
+	// create the integration such as a kubernetes service
+	ssd, err := s.integration.Register(msg.ServiceId, sd, m.Expose.Service.Config)
+	if err != nil {
+		s.log.Error(
+			"remote_local",
+			"message", "Unable to create integration for service",
+			"service_id", msg.ServiceId, "error", err)
+
+		// we need to send an error back to the connection
+		svr.Send(&shipyard.OpenData{
+			ServiceId: msg.ServiceId,
+			Message: &shipyard.OpenData_StatusUpdate{
+				StatusUpdate: &shipyard.StatusUpdate{
+					Status:  shipyard.ServiceStatus_ERROR,
+					Message: err.Error(),
+				},
+			},
+		})
+
+		return
+	}
+
 	// The connection is exposing a local service to us
 	// we need to open a TCP Listener for the service
 	if m.Expose.Service.Type == shipyard.ServiceType_LOCAL {
@@ -90,11 +119,10 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 			"message", "Create new listener for inbound data",
 			"service_id", msg.ServiceId,
 			"connection_id", msg.ConnectionId,
-			"port", m.Expose.Service.SourcePort)
+			"config", m.Expose.Service.Config)
 
 		var listener net.Listener
-		var err error
-		listener, err = s.createListenerAndListen(msg.ServiceId, int(m.Expose.Service.SourcePort))
+		listener, err = s.createListenerAndListen(msg.ServiceId, ssd.Port)
 		if err != nil {
 			s.log.Error(
 				"remote_server",
@@ -117,28 +145,6 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 			return
 		}
 
-		// create the integration such as a kubernetes service
-		err = s.createIntegration(msg.ServiceId, m.Expose.Service.Name, int(m.Expose.Service.SourcePort))
-		if err != nil {
-			s.log.Error(
-				"remote_local",
-				"message", "Unable to create integration for service",
-				"service_id", msg.ServiceId, "error", err)
-
-			// we need to send an error back to the connection
-			svr.Send(&shipyard.OpenData{
-				ServiceId: msg.ServiceId,
-				Message: &shipyard.OpenData_StatusUpdate{
-					StatusUpdate: &shipyard.StatusUpdate{
-						Status:  shipyard.ServiceStatus_ERROR,
-						Message: err.Error(),
-					},
-				},
-			})
-
-			return
-		}
-
 		svc.tcpListener = listener
 	}
 
@@ -146,18 +152,23 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 	svc.detail.Status = shipyard.ServiceStatus_COMPLETE
 	si.services.add(msg.ServiceId, svc)
 
+	// grab the details related to the service
+	d, _ := s.integration.GetDetails(svc.detail.Id)
+
 	s.log.Trace(
 		"remote_server",
 		"message", "Exposing service complete, notify remote",
 		"service_id", msg.ServiceId,
 		"connection_id", msg.ConnectionId,
-		"port", m.Expose.Service.SourcePort)
+	)
 
+	// send the complete message back to the server
 	svr.Send(&shipyard.OpenData{
 		ServiceId: msg.ServiceId,
 		Message: &shipyard.OpenData_StatusUpdate{
 			StatusUpdate: &shipyard.StatusUpdate{
 				Status: shipyard.ServiceStatus_COMPLETE,
+				Config: d,
 			},
 		},
 	})
@@ -211,7 +222,6 @@ func (s *Server) handleDataMessage(si *streamInfo, msg *shipyard.OpenData, svr s
 			s.log.Error(
 				"remote_server",
 				"message", "No connection for data, ignore message",
-				"port", svc.detail.SourcePort,
 				"serviceID", msg.ServiceId,
 				"connectionID", msg.ConnectionId)
 
@@ -223,17 +233,15 @@ func (s *Server) handleDataMessage(si *streamInfo, msg *shipyard.OpenData, svr s
 			"remote_server",
 			"message", "Create new upstream connection for data",
 			"service_id", msg.ServiceId,
-			"connection_id", msg.ConnectionId,
-			"addr", svc.detail.DestinationAddr)
+			"connection_id", msg.ConnectionId)
 
-		addr, err := s.lookupIntegration(svc.detail.DestinationAddr)
+		addr, err := s.integration.LookupAddress(svc.detail.Id)
 		if err != nil {
 			s.log.Error(
 				"local_server",
 				"message", "Unable to find address for upstream",
 				"service_id", msg.ServiceId,
 				"connection_id", msg.ConnectionId,
-				"addr", svc.detail.DestinationAddr,
 				"error", err,
 			)
 

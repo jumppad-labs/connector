@@ -126,26 +126,28 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 				return true
 			}
 
+			// register the service with the integration, this returns the location details
+			// for the local service
+			ssd, err := s.integration.Register(id, svc.detail.Type.String(), svc.detail.Config)
+			if err != nil {
+				s.log.Error(
+					"local_server",
+					"message", "Unable to create integration for service",
+					"service_id", id, "error", err)
+
+				return true
+			}
+
 			// set up all the local listeners if the type is remote and the listener does not already
 			// exist
 			if svc.detail.Type == shipyard.ServiceType_REMOTE && svc.tcpListener == nil {
+
 				// open the listener locally
-				l, err := s.createListenerAndListen(id, int(svc.detail.SourcePort))
+				l, err := s.createListenerAndListen(id, ssd.Port)
 				if err != nil {
 					s.log.Error(
 						"local_server",
 						"message", "Unable to create listener for service",
-						"service_id", id, "error", err)
-
-					return true
-				}
-
-				// create the integration such as a kubernetes service
-				err = s.createIntegration(id, svc.detail.Name, int(svc.detail.SourcePort))
-				if err != nil {
-					s.log.Error(
-						"local_server",
-						"message", "Unable to create integration for service",
 						"service_id", id, "error", err)
 
 					return true
@@ -284,94 +286,58 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 
 	switch m := msg.Message.(type) {
 	case *shipyard.OpenData_Data:
-		s.log.Trace(
-			"local_server",
-			"message", "Received data from remote",
-			"message_id", m.Data.Id,
-			"service_id", msg.ServiceId,
-			"msg", msg)
+		s.handleRemoteDataMessage(si, msg, m)
+	case *shipyard.OpenData_Closed:
+		s.handleRemoteClosedMessage(si, msg, m)
+	case *shipyard.OpenData_StatusUpdate:
+		s.handleRemoteUpdateMessage(si, msg, m)
+	}
+}
 
-		// if we get data find the connection for the message
-		// if we do not have a connection create one
-		svc, _ := si.services.get(msg.ServiceId)
-		c, ok := svc.getTCPConnection(msg.ConnectionId)
-		if !ok {
-			// is this a message for an upstream and if there is no connection
-			// assume the upstream has disconnected and ignore the message
-			if svc.detail.Type == shipyard.ServiceType_REMOTE {
-				s.log.Error(
-					"local_server",
-					"message", "No connection for data, ignore message",
-					"port", svc.detail.SourcePort,
-					"service_id", msg.ServiceId,
-					"connection_id", msg.ConnectionId)
+func (s *Server) handleRemoteDataMessage(si *streamInfo, msg *shipyard.OpenData, m *shipyard.OpenData_Data) {
+	s.log.Trace(
+		"local_server",
+		"message", "Received data from remote",
+		"message_id", m.Data.Id,
+		"service_id", msg.ServiceId,
+		"msg", msg)
 
-				return
-			}
-
-			s.log.Trace(
+	// if we get data find the connection for the message
+	// if we do not have a connection create one
+	svc, _ := si.services.get(msg.ServiceId)
+	c, ok := svc.getTCPConnection(msg.ConnectionId)
+	if !ok {
+		// is this a message for an upstream and if there is no connection
+		// assume the upstream has disconnected and ignore the message
+		if svc.detail.Type == shipyard.ServiceType_REMOTE {
+			s.log.Error(
 				"local_server",
-				"message", "Create new upstream connection for data",
+				"message", "No connection for data, ignore message",
 				"service_id", msg.ServiceId,
-				"connection_id", msg.ConnectionId,
-				"addr", svc.detail.DestinationAddr)
+				"connection_id", msg.ConnectionId)
 
-			// otherwise create a new upstream connection
-			var err error
-
-			newCon, err := net.Dial("tcp", svc.detail.DestinationAddr)
-			if err != nil {
-				s.log.Error(
-					"local_server",
-					"message", "Unable to create connection to upstream",
-					"service_id", msg.ServiceId,
-					"connection_id", msg.ConnectionId,
-					"addr", svc.detail.DestinationAddr)
-
-				si.grpcConn.Send(
-					&shipyard.OpenData{
-						ServiceId:    msg.ServiceId,
-						ConnectionId: msg.ConnectionId,
-						Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
-					},
-				)
-				return
-			}
-
-			// set the connection
-			c = newBufferedConn(newCon)
-			c.id = msg.ConnectionId
-			svc.setTCPConnection(msg.ConnectionId, c)
-
-			// start read handler and don't block
-			go s.handleConnectionRead(msg.ServiceId, si, svc, c)
+			return
 		}
 
 		s.log.Trace(
 			"local_server",
-			"message", "Writing data to local connection",
+			"message", "Create new upstream connection for data",
 			"service_id", msg.ServiceId,
 			"connection_id", msg.ConnectionId)
 
-		i, err := c.Write(m.Data.Data)
-		if err != nil {
-			if err == io.EOF {
-				s.log.Debug(
-					"local_server",
-					"message", "Connection closed",
-					"service_id", msg.ServiceId,
-					"connection_id", msg.ConnectionId)
-			} else {
-				s.log.Error(
-					"local_server",
-					"message", "Error writing to connection",
-					"service_id", msg.ServiceId,
-					"connection_id", msg.ConnectionId,
-					"error", err,
-				)
-			}
+		// otherwise create a new upstream connection
+		var err error
 
-			// send closed message
+		addr, err := s.integration.LookupAddress(svc.detail.Id)
+		if err != nil {
+			s.log.Error(
+				"local_server",
+				"message", "Unable to find address for upstream",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId,
+				"error", err,
+			)
+
 			si.grpcConn.Send(
 				&shipyard.OpenData{
 					ServiceId:    msg.ServiceId,
@@ -379,66 +345,133 @@ func (s *Server) handleRemoteMessage(si *streamInfo, msg *shipyard.OpenData) {
 					Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
 				},
 			)
-		}
-
-		s.log.Trace(
-			"local_server",
-			"message", "Data written to local connection",
-			"service_id", msg.ServiceId,
-			"connection_id", msg.ConnectionId)
-
-		// if the size of the data is less than the max buffer
-		// all writing has been completed for the connection switch to read mode
-		if i < MessageSize {
-			s.log.Trace(
-				"local_server",
-				"message", "All data written to local connection, start read",
-				"data_written", i,
-				"message_size", MessageSize,
-				"service_id", msg.ServiceId,
-				"connection_id", msg.ConnectionId)
-
-		}
-
-	case *shipyard.OpenData_Closed:
-		s.log.Trace(
-			"local_server",
-			"message", "Received close connection message",
-			"service_id", msg.ServiceId,
-			"connection_id", msg.ConnectionId)
-
-		svc, _ := si.services.get(msg.ServiceId)
-		if svc == nil {
-			s.log.Error(
-				"local_server",
-				"message", "Service does not exist",
-				"service_id", msg.ServiceId,
-				"connection_id", msg.ConnectionId)
-
 			return
 		}
 
-		c, ok := svc.getTCPConnection(msg.ConnectionId)
-		if ok {
-			s.log.Trace(
+		newCon, err := net.Dial("tcp", addr)
+		if err != nil {
+			s.log.Error(
 				"local_server",
-				"message", "Closing connection",
+				"message", "Unable to create connection to upstream",
 				"service_id", msg.ServiceId,
-				"connection_id", msg.ConnectionId)
+				"connection_id", msg.ConnectionId,
+				"addr", addr)
 
-			// we have a connection close it
-			c.Close()
-			svc.removeTCPConnection(msg.ConnectionId)
+			si.grpcConn.Send(
+				&shipyard.OpenData{
+					ServiceId:    msg.ServiceId,
+					ConnectionId: msg.ConnectionId,
+					Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+				},
+			)
+			return
 		}
 
-	case *shipyard.OpenData_StatusUpdate:
+		// set the connection
+		c = newBufferedConn(newCon)
+		c.id = msg.ConnectionId
+		svc.setTCPConnection(msg.ConnectionId, c)
+
+		// start read handler and don't block
+		go s.handleConnectionRead(msg.ServiceId, si, svc, c)
+	}
+
+	s.log.Trace(
+		"local_server",
+		"message", "Writing data to local connection",
+		"service_id", msg.ServiceId,
+		"connection_id", msg.ConnectionId)
+
+	i, err := c.Write(m.Data.Data)
+	if err != nil {
+		if err == io.EOF {
+			s.log.Debug(
+				"local_server",
+				"message", "Connection closed",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId)
+		} else {
+			s.log.Error(
+				"local_server",
+				"message", "Error writing to connection",
+				"service_id", msg.ServiceId,
+				"connection_id", msg.ConnectionId,
+				"error", err,
+			)
+		}
+
+		// send closed message
+		si.grpcConn.Send(
+			&shipyard.OpenData{
+				ServiceId:    msg.ServiceId,
+				ConnectionId: msg.ConnectionId,
+				Message:      &shipyard.OpenData_Closed{Closed: &shipyard.Closed{}},
+			},
+		)
+	}
+
+	s.log.Trace(
+		"local_server",
+		"message", "Data written to local connection",
+		"service_id", msg.ServiceId,
+		"connection_id", msg.ConnectionId)
+
+	// if the size of the data is less than the max buffer
+	// all writing has been completed for the connection switch to read mode
+	if i < MessageSize {
 		s.log.Trace(
 			"local_server",
-			"message", "Received status message",
+			"message", "All data written to local connection, start read",
+			"data_written", i,
+			"message_size", MessageSize,
 			"service_id", msg.ServiceId,
-			"status", m.StatusUpdate.Status)
+			"connection_id", msg.ConnectionId)
 
-		svc, _ := si.services.get(msg.ServiceId)
-		svc.detail.Status = m.StatusUpdate.Status
 	}
+}
+
+func (s *Server) handleRemoteClosedMessage(si *streamInfo, msg *shipyard.OpenData, m *shipyard.OpenData_Closed) {
+	s.log.Trace(
+		"local_server",
+		"message", "Received close connection message",
+		"service_id", msg.ServiceId,
+		"connection_id", msg.ConnectionId)
+
+	svc, _ := si.services.get(msg.ServiceId)
+	if svc == nil {
+		s.log.Error(
+			"local_server",
+			"message", "Service does not exist",
+			"service_id", msg.ServiceId,
+			"connection_id", msg.ConnectionId)
+
+		return
+	}
+
+	c, ok := svc.getTCPConnection(msg.ConnectionId)
+	if ok {
+		s.log.Trace(
+			"local_server",
+			"message", "Closing connection",
+			"service_id", msg.ServiceId,
+			"connection_id", msg.ConnectionId)
+
+		// we have a connection close it
+		c.Close()
+		svc.removeTCPConnection(msg.ConnectionId)
+	}
+}
+
+func (s *Server) handleRemoteUpdateMessage(si *streamInfo, msg *shipyard.OpenData, m *shipyard.OpenData_StatusUpdate) {
+	s.log.Trace(
+		"local_server",
+		"message", "Received status message",
+		"service_id", msg.ServiceId,
+		"status", m.StatusUpdate.Status,
+		"config", m.StatusUpdate.Config,
+	)
+
+	svc, _ := si.services.get(msg.ServiceId)
+	svc.detail.Status = m.StatusUpdate.Status
+	svc.detail.Details = m.StatusUpdate.Config
 }

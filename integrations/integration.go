@@ -10,14 +10,23 @@ import (
 type Integration interface {
 	// Register a new service with the integration, this is used when exposing a local
 	// application to a remote cluster
-	Register(id string, name string, srcPort, dstPort int) error
+	// Configuration is a simple map, the fields for this map vary based on the integration
+	Register(id string, direction string, config map[string]string) (*ServiceDetails, error)
 	// Deregister a new service with the integration, this is used when exposing a local
 	// application to a remote cluster
 	Deregister(id string) error
 	// LookupAddress, allows a service name to be resolved to a physical address
 	// where the service name is already addressable (i.e. kubernetes, or local)
 	// this method should just return the original service
-	LookupAddress(service string) (string, error)
+	LookupAddress(id string) (string, error)
+	// GetDetails related to the configured integration, this is specific for each
+	// integration plugin
+	GetDetails(id string) (map[string]string, error)
+}
+
+type ServiceDetails struct {
+	Address string
+	Port    int
 }
 
 // SanitizeName takes a string and returns a URI acceptable name

@@ -5,7 +5,9 @@ import (
 	"crypto/x509"
 	"fmt"
 	"io/ioutil"
-	gohttp "net/http"
+	"net"
+	"net/http"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-hclog"
@@ -17,57 +19,35 @@ import (
 
 // LocalServer represents a local HTTP server
 type LocalServer struct {
-	logger      hclog.Logger
-	apiAddress  string
-	bindAddress string
-	server      *gohttp.Server
-
-	tlsCAPath    string
-	tlsCAKeyPath string
-
-	tlsCertPath string
-	tlsKeyPath  string
+	listener net.Listener
+	logger   hclog.Logger
+	server   *http.Server
 }
 
 // NewLocalServer creates a new local HTTP server which can be used
 // to expose gRPC server methods with JSON
-func NewLocalServer(tlsCAPath, tlsCAKey, tlsCertPath, tlsKeyPath, apiAddress, bindAddr string, l hclog.Logger) *LocalServer {
-	return &LocalServer{apiAddress: apiAddress, bindAddress: bindAddr, logger: l, tlsCAPath: tlsCAPath, tlsCAKeyPath: tlsCAKey, tlsCertPath: tlsCertPath, tlsKeyPath: tlsKeyPath}
+func NewLocalServer(l net.Listener, log hclog.Logger) *LocalServer {
+	return &LocalServer{listener: l, logger: log}
 }
 
 // Serve starts serving traffic
-// Does not block
 func (l *LocalServer) Serve() error {
 
 	// add the handlers
-	mux := l.createHandlers()
+	mux := l.createHandlers(l.listener.Addr().String())
 
 	// create the server and add handlers
-	l.server = &gohttp.Server{Handler: mux}
-	l.server.Addr = l.bindAddress
-
-	// are we using TLS?
-	if l.tlsCertPath != "" && l.tlsKeyPath != "" {
-		l.logger.Info("Loading TLS Key", "path", l.tlsKeyPath)
-
-		go func() {
-			err := l.server.ListenAndServeTLS(l.tlsCertPath, l.tlsKeyPath)
-			if err != nil {
-				l.logger.Error("Unable to start server", "error", err)
-			}
-		}()
-
-		return nil
+	l.server = &http.Server{
+		Handler:           mux,
+		Addr:              l.listener.Addr().String(),
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 0 * time.Second,
+		WriteTimeout:      10 * time.Second,
+		IdleTimeout:       30 * time.Second,
+		ErrorLog:          l.logger.StandardLogger(&hclog.StandardLoggerOptions{InferLevels: true}),
 	}
 
-	go func() {
-		err := l.server.ListenAndServe()
-		if err != nil {
-			l.logger.Error("Unable to start server", "error", err)
-		}
-	}()
-
-	return nil
+	return l.server.Serve(l.listener)
 }
 
 // Close all connections and shutdown the server
@@ -75,37 +55,31 @@ func (l *LocalServer) Close() error {
 	return l.server.Close()
 }
 
-func (l *LocalServer) createHandlers() *mux.Router {
+func (l *LocalServer) createHandlers(addr string) *mux.Router {
 	r := mux.NewRouter()
-	cli, _ := getRemoteClient(l.tlsCAPath, l.tlsCertPath, l.tlsKeyPath, l.apiAddress)
+	cli, _ := getRemoteClient("", addr)
 
 	// health handler
 	hh := handlers.NewHealth(l.logger.Named("health_handler"))
-	r.Handle("/health", hh).Methods(gohttp.MethodGet)
+	r.Handle("/health", hh).Methods(http.MethodGet)
 
 	eh := handlers.NewExpose(cli, l.logger.Named("expose_handler"))
-	r.Handle("/expose", eh).Methods(gohttp.MethodPost)
+	r.Handle("/expose", eh).Methods(http.MethodPost)
 
 	dh := handlers.NewRemove(cli, l.logger.Named("remove_handler"))
-	r.Handle("/expose/{id}", dh).Methods(gohttp.MethodDelete)
+	r.Handle("/expose/{id}", dh).Methods(http.MethodDelete)
 
 	lh := handlers.NewList(cli, l.logger.Named("list_handler"))
-	r.Handle("/list", lh).Methods(gohttp.MethodGet)
+	r.Handle("/list", lh).Methods(http.MethodGet)
 
-	ch := handlers.NewGenerateCertificate(l.logger.Named("certificate_handler"), l.tlsCAPath, l.tlsCAKeyPath)
-	r.Handle("/certificate", ch).Methods(gohttp.MethodPost)
+	//ch := handlers.NewGenerateCertificate(l.logger.Named("certificate_handler"), l.tlsCAPath, l.tlsCAKeyPath)
+	//r.Handle("/certificate", ch).Methods(http.MethodPost)
 
 	return r
 }
 
-func getRemoteClient(tlsCAPath, tlsCertPath, tlsKeyPath, uri string) (shipyard.RemoteConnectionClient, error) {
-	if tlsCAPath != "" && tlsCertPath != "" && tlsKeyPath != "" {
-		// if we are using TLS create a TLS client
-		certificate, err := tls.LoadX509KeyPair(tlsCertPath, tlsKeyPath)
-		if err != nil {
-			return nil, err
-		}
-
+func getRemoteClient(tlsCAPath, uri string) (shipyard.RemoteConnectionClient, error) {
+	if tlsCAPath != "" {
 		// Create a certificate pool from the certificate authority
 		certPool := x509.NewCertPool()
 		ca, err := ioutil.ReadFile(tlsCAPath)
@@ -119,9 +93,7 @@ func getRemoteClient(tlsCAPath, tlsCertPath, tlsKeyPath, uri string) (shipyard.R
 		}
 
 		creds := credentials.NewTLS(&tls.Config{
-			ServerName:   uri,
-			Certificates: []tls.Certificate{certificate},
-			RootCAs:      certPool,
+			RootCAs: certPool,
 		})
 
 		// Create a connection with the TLS credentials

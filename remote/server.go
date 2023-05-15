@@ -71,7 +71,7 @@ func (s *Server) ExposeService(ctx context.Context, r *shipyard.ExposeRequest) (
 	// validate that there is not already a service
 	for _, s := range s.streams {
 		if s.services.contains(svc) {
-			return nil, status.Errorf(codes.InvalidArgument, "Unable to expose remote service on port %d, port already in use", r.Service.SourcePort)
+			return nil, status.Errorf(codes.InvalidArgument, "Unable to expose remote service: %s, already exists", s.addr)
 		}
 	}
 
@@ -200,34 +200,8 @@ func (s *Server) teardownService(svc *service) {
 	}
 
 	// are there any integrations to remove
-	err := s.removeIntegration(svc.detail.Name)
+	err := s.integration.Deregister(svc.detail.Id)
 	if err != nil {
-		s.log.Error("Unable to create integration for service", "service_id", svc.detail.Name, "error", err)
+		s.log.Error("Unable to create integration for service", "service_id", svc.detail.Id, "error", err)
 	}
-}
-
-func (s *Server) createIntegration(id, name string, port int) error {
-	if s.integration != nil {
-		name = integrations.SanitizeName(name)
-		return s.integration.Register(id, name, port, port)
-	}
-
-	return nil
-}
-
-func (s *Server) removeIntegration(name string) error {
-	if s.integration != nil {
-		name = integrations.SanitizeName(name)
-		return s.integration.Deregister(name)
-	}
-
-	return nil
-}
-
-func (s *Server) lookupIntegration(addr string) (string, error) {
-	if s.integration != nil {
-		return s.integration.LookupAddress(addr)
-	}
-
-	return "", nil
 }

@@ -6,48 +6,64 @@ import (
 	"math/rand"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/hashicorp/go-hclog"
+	"github.com/jumppad-labs/connector/integrations"
 	"golang.org/x/xerrors"
 )
 
 type Integration struct {
-	log hclog.Logger
+	log   hclog.Logger
+	cache map[string]*config
 }
 
 func New(log hclog.Logger) *Integration {
-	return &Integration{log}
+	return &Integration{log, map[string]*config{}}
 }
 
-func (i *Integration) Register(id string, name string, srcPort, dstPort int) error {
-	return nil
+func (i *Integration) Register(id string, direction string, c map[string]string) (*integrations.ServiceDetails, error) {
+	conf, err := getDetailsFromConfig(c)
+	if err != nil {
+		return nil, err
+	}
+
+	// store in the cache
+	i.cache[id] = conf
+
+	// get the service address
+	add, err := i.LookupAddress(id)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := strings.Split(add, ":")
+	port, _ := strconv.Atoi(parts[1])
+
+	return &integrations.ServiceDetails{
+		Address: parts[0],
+		Port:    port,
+	}, nil
 }
 
 func (i *Integration) Deregister(id string) error {
+	delete(i.cache, id)
 	return nil
 }
 
-func (i *Integration) LookupAddress(service string) (string, error) {
-	i.log.Debug("Attempting to resolve host address for", "service", service)
+func (i *Integration) LookupAddress(id string) (string, error) {
+	i.log.Debug("Attempting to resolve host address for", "service", id)
 
-	parts := strings.Split(service, ".")
-	if len(parts) != 3 {
-		return "", fmt.Errorf("service %s should be formatted job.group.task:port", service)
-	}
+	ci := i.cache[id]
 
-	taskParts := strings.Split(parts[2], ":")
-	if len(taskParts) != 2 {
-		return "", fmt.Errorf("service %s should be formatted job.group.task:port", service)
-	}
-
-	eps, err := i.jobEndpoints(parts[0], parts[1], taskParts[0])
+	eps, err := i.jobEndpoints(ci.Job, ci.Group, ci.Task)
 	if err != nil {
-		return "", fmt.Errorf("unable to find endpoint for service %s, error: %s", service, err)
+		return "", fmt.Errorf("unable to find endpoint for service %s, error: %s", id, err)
 	}
 
 	if len(eps) < 1 {
-		return "", fmt.Errorf("unable to find endpoint for service %s", service)
+		return "", fmt.Errorf("unable to find endpoint for service %s", id)
 	}
 
 	// choose a random endpoint
@@ -55,12 +71,23 @@ func (i *Integration) LookupAddress(service string) (string, error) {
 	ep := eps[ei]
 
 	// get the endpoint for the port
-	p, ok := ep[taskParts[1]]
+	p, ok := ep[ci.Port]
 	if !ok {
-		return "", fmt.Errorf("unable to find port %s in endpoints for service %s", taskParts[1], service)
+		return "", fmt.Errorf("unable to find port %s in endpoints for service %s", ci.Port, id)
 	}
 
 	return p, nil
+}
+
+func (i *Integration) GetDetails(id string) (map[string]string, error) {
+	addr, err := i.LookupAddress(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{
+		"address": addr,
+	}, nil
 }
 
 func (i *Integration) jobEndpoints(job, group, task string) ([]map[string]string, error) {
@@ -234,4 +261,36 @@ type allocNetwork struct {
 type port struct {
 	Label string
 	Value int
+}
+
+type config struct {
+	Port  string
+	Job   string
+	Group string
+	Task  string
+}
+
+func getDetailsFromConfig(c map[string]string) (*config, error) {
+	if c == nil || c["port"] == "" {
+		return nil, fmt.Errorf(`"port", missing from configuration`)
+	}
+
+	if c == nil || c["job"] == "" {
+		return nil, fmt.Errorf(`"job", missing from configuration`)
+	}
+
+	if c == nil || c["group"] == "" {
+		return nil, fmt.Errorf(`"group", missing from configuration`)
+	}
+
+	if c == nil || c["task"] == "" {
+		return nil, fmt.Errorf(`"task", missing from configuration`)
+	}
+
+	return &config{
+		Port:  c["port"],
+		Job:   c["job"],
+		Group: c["group"],
+		Task:  c["task"],
+	}, nil
 }
