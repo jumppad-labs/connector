@@ -82,15 +82,8 @@ func (s *Server) handleExposeMessage(si *streamInfo, msg *shipyard.OpenData, svr
 
 	svc := newService()
 
-	// we need to flip the integration as if this is a LOCAL expose then the integration
-	// address is the remote part
-	sd := "LOCAL"
-	if m.Expose.Service.Type.String() == "LOCAL" {
-		sd = "REMOTE"
-	}
-
 	// create the integration such as a kubernetes service
-	ssd, err := s.integration.Register(msg.ServiceId, sd, m.Expose.Service.Config)
+	ssd, err := s.integration.Register(msg.ServiceId, m.Expose.Service.Type.String(), "REMOTE", m.Expose.Service.Config)
 	if err != nil {
 		s.log.Error(
 			"remote_local",

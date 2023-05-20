@@ -3,6 +3,8 @@ package cmd
 import (
 	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"io/ioutil"
 	"log"
 	"net"
 	"os"
@@ -23,6 +25,7 @@ import (
 )
 
 var bindAddr string
+var pathCertCA string
 var pathCertServer string
 var pathKeyServer string
 var logLevel string
@@ -31,6 +34,7 @@ var namespace string
 
 func init() {
 	runCmd.Flags().StringVarP(&bindAddr, "bind", "", ":9090", "Bind address for the application")
+	runCmd.Flags().StringVarP(&pathCertCA, "ca-path", "", "", "Path for the PEM encoded self signed CA certificate")
 	runCmd.Flags().StringVarP(&pathCertServer, "cert-path", "", "", "Path for the servers PEM encoded TLS certificate")
 	runCmd.Flags().StringVarP(&pathKeyServer, "key-path", "", "", "Path for the servers PEM encoded Private Key")
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
@@ -80,9 +84,29 @@ var runCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
+			// Get the SystemCertPool, continue with an empty pool on error
+			rootCAs, _ := x509.SystemCertPool()
+			if rootCAs == nil {
+				rootCAs = x509.NewCertPool()
+			}
+
+			// Read in the cert file
+			if pathCertCA != "" {
+				certs, err := ioutil.ReadFile(pathCertCA)
+				if err != nil {
+					log.Fatalf("Failed to append %q to RootCAs: %v", pathCertCA, err)
+				}
+
+				// Append our cert to the system pool
+				if ok := rootCAs.AppendCertsFromPEM(certs); !ok {
+					log.Println("No certs appended, using system certs only")
+				}
+			}
+
 			config := &tls.Config{
 				Certificates: []tls.Certificate{certificate},
 				Rand:         rand.Reader,
+				RootCAs:      rootCAs,
 			}
 
 			// Create TLS listener.

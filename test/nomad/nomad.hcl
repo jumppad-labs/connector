@@ -1,10 +1,10 @@
-network "local" {
+resource "network" "local" {
   subnet = "10.5.0.0/16"
 }
 
-nomad_cluster "dev" {
+resource "nomad_cluster" "dev" {
   network {
-    name = "network.local"
+    id = resource.network.local.id
   }
 
   image {
@@ -16,16 +16,10 @@ nomad_cluster "dev" {
     remote = 30090
     host   = 30090
   }
-
-  port {
-    local  = 30091
-    remote = 30091
-    host   = 30091
-  }
 }
 
-nomad_job "fake_service" {
-  cluster = "nomad_cluster.dev"
+resource "nomad_job" "fake_service" {
+  cluster = resource.nomad_cluster.dev.id
 
   paths = ["./example.nomad"]
   health_check {

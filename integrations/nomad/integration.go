@@ -16,34 +16,84 @@ import (
 
 type Integration struct {
 	log   hclog.Logger
-	cache map[string]*config
+	cache map[string]cacheItem
+}
+
+type cacheItem struct {
+	ServiceType string
+	Component   string
+	Job         string
+	Group       string
+	Task        string
+	TaskPort    string
+	Address     string
+	Port        int
 }
 
 func New(log hclog.Logger) *Integration {
-	return &Integration{log, map[string]*config{}}
+	return &Integration{log, map[string]cacheItem{}}
 }
 
-func (i *Integration) Register(id string, direction string, c map[string]string) (*integrations.ServiceDetails, error) {
-	conf, err := getDetailsFromConfig(c)
+// Register handles events when new services are exposed
+//
+// if we are creating a local service on the remote component, we need
+// to create an address that points at a tcp port which will
+// route traffic over the stream to the local connector
+
+// if we are creating a local service on the local component, we need to
+// just set the address of the local service being exposed
+
+// if we are creating a remote service on the remote component, we need to
+// set the address of the local service being exposed
+
+// if we are creating a remote service on the local component, we need to
+// set the address to the location of the tcp listener
+func (i *Integration) Register(id, serviceType, component string, c map[string]string) (*integrations.ServiceDetails, error) {
+	port, err := getPortFromConfig(c)
 	if err != nil {
 		return nil, err
 	}
 
-	// store in the cache
-	i.cache[id] = conf
+	ci := cacheItem{
+		Port:        port,
+		ServiceType: serviceType,
+		Component:   component,
+	}
 
-	// get the service address
-	add, err := i.LookupAddress(id)
+	if serviceType == "REMOTE" {
+		ci2, err := getDetailsFromConfig(c)
+		if err != nil {
+			return nil, err
+		}
+
+		ci2.Port = ci.Port
+		ci2.ServiceType = ci.ServiceType
+		ci2.Component = ci.Component
+
+		i.cache[id] = *ci2
+
+	}
+
+	addr, p, err := getAddressFromConfig(c)
 	if err != nil {
 		return nil, err
 	}
 
-	parts := strings.Split(add, ":")
-	port, _ := strconv.Atoi(parts[1])
+	ci.Address = fmt.Sprintf("%s:%d", addr, p)
+
+	i.cache[id] = ci
+
+	addr, err = i.LookupAddress(id)
+	if err != nil {
+		return nil, err
+	}
+
+	parts := strings.Split(addr, ":")
+	p, _ = strconv.Atoi(parts[1])
 
 	return &integrations.ServiceDetails{
 		Address: parts[0],
-		Port:    port,
+		Port:    p,
 	}, nil
 }
 
@@ -57,6 +107,25 @@ func (i *Integration) LookupAddress(id string) (string, error) {
 
 	ci := i.cache[id]
 
+	// return the address of the local service
+	if ci.Component == "LOCAL" && ci.ServiceType == "LOCAL" {
+		return ci.Address, nil
+	}
+
+	// return the address of the local listener
+	if ci.Component == "LOCAL" && ci.ServiceType == "REMOTE" {
+		return fmt.Sprintf("localhost:%d", ci.Port), nil
+	}
+
+	// if a remote service get the address of the connector
+	if ci.Component == "REMOTE" && ci.ServiceType == "LOCAL" {
+		ci.Job = "connector"
+		ci.Group = "connector"
+		ci.Task = "connector"
+		ci.TaskPort = "http"
+	}
+
+	// return the address of the nomad task
 	eps, err := i.jobEndpoints(ci.Job, ci.Group, ci.Task)
 	if err != nil {
 		return "", fmt.Errorf("unable to find endpoint for service %s, error: %s", id, err)
@@ -71,9 +140,9 @@ func (i *Integration) LookupAddress(id string) (string, error) {
 	ep := eps[ei]
 
 	// get the endpoint for the port
-	p, ok := ep[ci.Port]
+	p, ok := ep[ci.TaskPort]
 	if !ok {
-		return "", fmt.Errorf("unable to find port %s in endpoints for service %s", ci.Port, id)
+		return "", fmt.Errorf("unable to find port %s in endpoints for service %s", ci.TaskPort, id)
 	}
 
 	return p, nil
@@ -263,16 +332,33 @@ type port struct {
 	Value int
 }
 
-type config struct {
-	Port  string
-	Job   string
-	Group string
-	Task  string
+func getPortFromConfig(c map[string]string) (int, error) {
+	if c == nil || c["port"] == "" {
+		return -1, fmt.Errorf(`"port", missing from configuration`)
+	}
+
+	port, err := strconv.Atoi(c["port"])
+	if err != nil {
+		return -1, fmt.Errorf("port is not a number, %s", err)
+	}
+
+	return port, nil
 }
 
-func getDetailsFromConfig(c map[string]string) (*config, error) {
-	if c == nil || c["port"] == "" {
-		return nil, fmt.Errorf(`"port", missing from configuration`)
+func getAddressFromConfig(c map[string]string) (string, int, error) {
+	if c == nil || c["address"] == "" {
+		return "", -1, fmt.Errorf(`"address", missing from configuration`)
+	}
+
+	parts := strings.Split(c["address"], ":")
+	port, _ := strconv.Atoi(parts[1])
+
+	return parts[0], port, nil
+}
+
+func getDetailsFromConfig(c map[string]string) (*cacheItem, error) {
+	if c == nil || c["task_port"] == "" {
+		return nil, fmt.Errorf(`"task_port", missing from configuration`)
 	}
 
 	if c == nil || c["job"] == "" {
@@ -287,10 +373,10 @@ func getDetailsFromConfig(c map[string]string) (*config, error) {
 		return nil, fmt.Errorf(`"task", missing from configuration`)
 	}
 
-	return &config{
-		Port:  c["port"],
-		Job:   c["job"],
-		Group: c["group"],
-		Task:  c["task"],
+	return &cacheItem{
+		Job:      c["job"],
+		Group:    c["group"],
+		Task:     c["task"],
+		TaskPort: c["task_port"],
 	}, nil
 }

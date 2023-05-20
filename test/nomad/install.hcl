@@ -1,65 +1,147 @@
-exec_remote "certs" {
-  image {
-    name = "connector:dev"
-  }
-
-  network {
-    name = "network.local"
-  }
-
-  cmd = "/generate_certs.sh"
-
-  # Mount a volume containing the config
-  volume {
-    source      = "../../install/nomad/generate_certs.sh"
-    destination = "/generate_certs.sh"
-  }
-
-  volume {
-    source      = "./certs"
-    destination = "/certs"
-  }
+resource "certificate_ca" "root" {
+  output = data("certs")
 }
 
-exec_remote "create_job" {
-  depends_on = ["exec_remote.certs"]
+resource "certificate_leaf" "nomad" {
+  ca_key  = resource.certificate_ca.root.private_key.filename
+  ca_cert = resource.certificate_ca.root.certificate.filename
 
-  image {
-    name = "connector:dev"
-  }
+  ip_addresses = ["127.0.0.1"]
 
-  network {
-    name = "network.local"
-  }
+  dns_names = [
+    "localhost",
+    "localhost:30090",
+    "30090",
+    "connector",
+    "connector",
+  ]
 
-  cmd = "/generate_job.sh"
-
-  # Mount a volume containing the config
-  volume {
-    source      = "../../install/nomad/generate_job.sh"
-    destination = "/generate_job.sh"
-  }
-
-  working_directory = "/job"
-
-  volume {
-    source      = "./job"
-    destination = "/job"
-  }
-
-  volume {
-    source      = "./certs"
-    destination = "/job/certs"
-  }
+  output = data("certs")
 }
 
-nomad_job "connector" {
-  depends_on = ["exec_remote.create_job"]
-  cluster    = "nomad_cluster.dev"
+resource "template" "connector_job" {
+  source = <<-EOF
+    job "connector" {
+      datacenters = ["dc1"]
+      type        = "service"
 
-  paths = ["./job/install.nomad"]
-  health_check {
-    timeout    = "60s"
-    nomad_jobs = ["connector"]
-  }
+      update {
+        max_parallel      = 1
+        min_healthy_time  = "10s"
+        healthy_deadline  = "3m"
+        progress_deadline = "10m"
+        auto_revert       = false
+        canary            = 0
+      }
+
+      migrate {
+        max_parallel     = 1
+        health_check     = "checks"
+        min_healthy_time = "10s"
+        healthy_deadline = "5m"
+      }
+
+      group "connector" {
+        count = 1
+
+        network {
+          port "grpc" {
+            to     = 30090
+            static = 30090
+          }
+
+          port "http" {
+            to     = 30091
+            static = 30091
+          }
+        }
+
+        restart {
+          # The number of attempts to run the job within the specified interval.
+          attempts = 2
+          interval = "30m"
+          delay    = "15s"
+          mode     = "fail"
+        }
+
+        ephemeral_disk {
+          size = 30
+        }
+
+        task "connector" {
+          template {
+            data = <<-EOH
+    ${resource.certificate_leaf.nomad.certificate.contents}
+            EOH
+
+            destination = "local/certs/server.cert"
+          }
+
+          template {
+            data = <<-EOH
+    ${resource.certificate_leaf.nomad.private_key.contents}
+            EOH
+
+            destination = "local/certs/server.key"
+          }
+
+          template {
+            data = <<-EOH
+    ${resource.certificate_ca.root.certificate.contents}
+            EOH
+
+            destination = "local/certs/ca.cert"
+          }
+
+          # The "driver" parameter specifies the task driver that should be used to
+          # run the task.
+          driver = "docker"
+
+          logs {
+            max_files     = 2
+            max_file_size = 10
+          }
+
+          env {
+            NOMAD_ADDR = "http://\$${NOMAD_IP_http}:4646"
+          }
+
+          config {
+            image = "connector:dev"
+
+            ports   = ["http", "grpc"]
+            command = "/connector"
+            args = [
+              "run",
+    		      "--grpc-bind=:30090",
+    		      "--http-bind=:30091",
+              "--log-level=trace",
+              "--root-cert-path=local/certs/ca.cert",
+              "--server-cert-path=local/certs/server.cert",
+              "--server-key-path=local/certs/server.key",
+              "--integration=nomad",
+            ]
+          }
+
+          resources {
+            cpu    = 500 # 500 MHz
+            memory = 256 # 256MB
+
+          }
+        }
+      }
+    }
+  EOF
+
+  destination = "${data("jobs")}/connector.hcl"
 }
+
+//resource "nomad_job" "connector" {
+//  cluster = resource.nomad_cluster.dev.id
+//
+//  paths = ["${resource.template.connector_job.destination}"]
+//  health_check {
+//    timeout    = "60s"
+//    nomad_jobs = ["connector"]
+//  }
+//}

@@ -87,7 +87,7 @@ ZMKB2S7van3Z1GEzu+IU8gNR7f3bUjiXAschKdU=
 
         destination = "local/certs/server.cert"
       }
-      
+
       template {
         data = <<-EOH
 -----BEGIN RSA PRIVATE KEY-----
@@ -145,7 +145,7 @@ YIllJttymFodLDJJrWRkJchT2GsTeQaSmVYrjbZryJUDCZtcAx05id01uF/3DkzS
 
         destination = "local/certs/server.key"
       }
-      
+
       template {
         data = <<-EOH
 -----BEGIN CERTIFICATE-----
@@ -203,12 +203,12 @@ qmXNYqI/1HACsHzTQhCeq4j0cPpJ
         command = "/connector"
         args = [
           "run",
-		      "--grpc-bind=:30090",
-		      "--http-bind=:30091",
+          "--grpc-bind=:30090",
+          "--http-bind=:30091",
           "--log-level=trace",
-          "--root-cert-path=local/certs/ca.cert",
-          "--server-cert-path=local/certs/server.cert",
-          "--server-key-path=local/certs/server.key",
+          "--ca-path=local/certs/ca.cert",
+          "--cert-path=local/certs/server.cert",
+          "--key-path=local/certs/server.key",
           "--integration=nomad",
         ]
       }

@@ -128,7 +128,7 @@ func (s *Server) handleReconnection(conn *streamInfo) error {
 
 			// register the service with the integration, this returns the location details
 			// for the local service
-			ssd, err := s.integration.Register(id, svc.detail.Type.String(), svc.detail.Config)
+			ssd, err := s.integration.Register(id, svc.detail.Type.String(), "LOCAL", svc.detail.Config)
 			if err != nil {
 				s.log.Error(
 					"local_server",

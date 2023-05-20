@@ -10,8 +10,17 @@ import (
 type Integration interface {
 	// Register a new service with the integration, this is used when exposing a local
 	// application to a remote cluster
-	// Configuration is a simple map, the fields for this map vary based on the integration
-	Register(id string, direction string, config map[string]string) (*ServiceDetails, error)
+	//
+	// serviceType is the type of service being exposed LOCAL, REMOTE
+	// component is the LOCAL, or REMOTE part of the connector
+	// config is a simple map, the fields for this map vary based on the integration
+	//
+	// serviceType and component have a baring on the integration
+	// For example, registering a LOCAL service on the LOCAL component requires only the
+	// address of the upstream application to be set
+	// however, registering a LOCAL service on the REMOTE component requires a listener to be
+	// created that will route traffic over the stream to the local component
+	Register(id, serviceType, component string, config map[string]string) (*ServiceDetails, error)
 	// Deregister a new service with the integration, this is used when exposing a local
 	// application to a remote cluster
 	Deregister(id string) error

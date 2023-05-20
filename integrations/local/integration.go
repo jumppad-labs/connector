@@ -18,8 +18,10 @@ func New(log hclog.Logger) *Integration {
 	return &Integration{log, map[string]*integrations.ServiceDetails{}}
 }
 
-func (i *Integration) Register(id string, direction string, config map[string]string) (*integrations.ServiceDetails, error) {
-	if direction == "LOCAL" {
+func (i *Integration) Register(id, serviceType, component string, config map[string]string) (*integrations.ServiceDetails, error) {
+	// if this is the local part we use the address field in the local
+	// config as this is the local service we need to send traffic to
+	if component == "LOCAL" {
 		addr, err := getAddressFromConfig(config)
 		if err != nil {
 			return nil, err
@@ -35,7 +37,8 @@ func (i *Integration) Register(id string, direction string, config map[string]st
 		return i.cache[id], err
 	}
 
-	// remote address
+	// if this is the remote part, we build the address that will form the
+	// local listener that will eventually route data over the remote stream
 	p, err := getPortFromConfig(config)
 	i.cache[id] = &integrations.ServiceDetails{Address: "localhost", Port: p}
 

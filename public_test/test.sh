@@ -48,6 +48,7 @@ if [[ $1 == "create_nomad" ]];then
 	 "type": "local",
    "config": {
 	    "address": "localhost:19090",
+      "port": "13000"
     }
 	}'
 
@@ -60,7 +61,8 @@ if [[ $1 == "create_nomad" ]];then
       "job": "local",
       "task": "nomad",
       "group": "service",
-      "port": "tcp"
+      "job_port": "tcp"
+      "port": "9090"
      }
   }'
 fi

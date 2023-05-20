@@ -1,6 +1,4 @@
-container "local_connector" {
-  depends_on = ["exec_remote.certs"]
-
+resource "container" "local_connector" {
   image {
     name = "connector:dev"
   }
@@ -17,21 +15,16 @@ container "local_connector" {
   ]
 
   port_range {
-    range       = "9090-9100"
-    enable_host = true
-  }
-
-  port_range {
-    range       = "9990-9999"
+    range       = "9090-9091"
     enable_host = true
   }
 
   network {
-    name = "network.local"
+    id = resource.network.local.id
   }
 
   volume {
-    source      = "./certs"
+    source      = resource.certificate_leaf.nomad.output
     destination = "/certs"
   }
 }

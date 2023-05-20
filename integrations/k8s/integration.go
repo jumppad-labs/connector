@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/jumppad-labs/connector/integrations"
@@ -23,8 +24,11 @@ type Integration struct {
 }
 
 type cacheItem struct {
-	Name string
-	Port int
+	ServiceType string
+	Component   string
+	Name        string
+	Address     string
+	Port        int
 }
 
 // New creates a new Kubernetes integration
@@ -33,7 +37,101 @@ func New(log hclog.Logger, namespace string) *Integration {
 }
 
 // Register handles events when new services are exposed
-func (i *Integration) Register(id string, direction string, config map[string]string) (*integrations.ServiceDetails, error) {
+//
+// if we are creating a local service on the remote component, we need
+// to create a kubernetes service that points at a tcp port which will
+// route traffic over the stream to the local connector
+
+// if we are creating a local service on the local component, we need to
+// just set the address of the local service being exposed
+
+// if we are creating a remote service on the remote component, we need to
+// set the address of the local service being exposed
+
+// if we are creating a remote service on the local component, we need to
+// set the address to the location of the tcp listener
+func (i *Integration) Register(id, serviceType, component string, config map[string]string) (*integrations.ServiceDetails, error) {
+	if component == "REMOTE" && serviceType == "LOCAL" {
+		return i.createLocalIntegration(id, config)
+	}
+
+	if (component == "REMOTE" && serviceType == "REMOTE") || (component == "LOCAL" && serviceType == "LOCAL") {
+		addr, port, err := getAddressFromConfig(config)
+		if err != nil {
+			return nil, err
+		}
+
+		ci := cacheItem{
+			Component:   component,
+			ServiceType: serviceType,
+			Address:     addr,
+			Port:        port,
+		}
+
+		i.cache[id] = ci
+
+		return &integrations.ServiceDetails{Address: ci.Address, Port: ci.Port}, nil
+	}
+
+	if component == "LOCAL" && serviceType == "REMOTE" {
+		p, err := getPortFromConfig(config)
+		if err != nil {
+			return nil, err
+		}
+
+		ci := cacheItem{
+			Component:   component,
+			ServiceType: serviceType,
+			Address:     "localhost",
+			Port:        p,
+		}
+
+		i.cache[id] = ci
+
+		return &integrations.ServiceDetails{Address: ci.Address, Port: ci.Port}, nil
+	}
+
+	return nil, fmt.Errorf("invalid serviceType %s and component %s", serviceType, component)
+}
+
+// Deregister a service in Kubernetes
+func (i *Integration) Deregister(id string) error {
+	name := i.cache[id].Name
+
+	clientset, err := i.createClient()
+	if err != nil {
+		i.log.Error("Unable to create Kubernetes client", "error", err)
+		return err
+	}
+
+	err = clientset.CoreV1().Services(i.namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
+	if err != nil {
+		i.log.Error("Unable to remove Kubernetes service", "error", err)
+		return err
+	}
+
+	delete(i.cache, id)
+
+	return nil
+}
+
+func (i *Integration) LookupAddress(id string) (string, error) {
+	addr := i.cache[id].Address
+	port := i.cache[id].Port
+
+	return fmt.Sprintf("%s:%d", addr, port), nil
+}
+
+func (i *Integration) GetDetails(id string) (map[string]string, error) {
+	addr, err := i.LookupAddress(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]string{"address": addr}, nil
+}
+
+func (i *Integration) createLocalIntegration(id string, config map[string]string) (*integrations.ServiceDetails, error) {
 	clientset, err := i.createClient()
 	if err != nil {
 		i.log.Error("Unable to create Kubernetes client", "error", err)
@@ -41,12 +139,17 @@ func (i *Integration) Register(id string, direction string, config map[string]st
 	}
 
 	name := config["name"]
-	dstPort, _ := strconv.Atoi(config["port"])
+	dstPort, _ := getPortFromConfig(config)
 
-	i.cache[id] = cacheItem{
-		Name: name,
-		Port: dstPort,
+	ci := cacheItem{
+		Component:   "REMOTE",
+		ServiceType: "LOCAL",
+		Name:        name,
+		Address:     fmt.Sprintf("%s.%s.svc", name, i.namespace),
+		Port:        dstPort,
 	}
+
+	i.cache[id] = ci
 
 	// does the service already exist?
 	svc, err := clientset.CoreV1().Services(i.namespace).Get(context.TODO(), name, metav1.GetOptions{})
@@ -82,46 +185,9 @@ func (i *Integration) Register(id string, direction string, config map[string]st
 	}
 
 	return &integrations.ServiceDetails{
-		Address: fmt.Sprintf("%s.%s.svc", name, i.namespace),
+		Address: ci.Address,
 		Port:    dstPort,
 	}, nil
-}
-
-// Deregister a service in Kubernetes
-func (i *Integration) Deregister(id string) error {
-	name := i.cache[id].Name
-
-	clientset, err := i.createClient()
-	if err != nil {
-		i.log.Error("Unable to create Kubernetes client", "error", err)
-		return err
-	}
-
-	err = clientset.CoreV1().Services(i.namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		i.log.Error("Unable to remove Kubernetes service", "error", err)
-		return err
-	}
-
-	delete(i.cache, id)
-
-	return nil
-}
-
-func (i *Integration) LookupAddress(id string) (string, error) {
-	name := i.cache[id].Name
-	port := i.cache[id].Port
-
-	return fmt.Sprintf("%s.%s.svc:%d", name, i.namespace, port), nil
-}
-
-func (i *Integration) GetDetails(id string) (map[string]string, error) {
-	addr, err := i.LookupAddress(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return map[string]string{"address": addr}, nil
 }
 
 func (i *Integration) createClient() (*kubernetes.Clientset, error) {
@@ -140,4 +206,34 @@ func (i *Integration) createClient() (*kubernetes.Clientset, error) {
 	}
 
 	return clientset, nil
+}
+
+func getPortFromConfig(config map[string]string) (int, error) {
+	if config == nil || config["port"] == "" {
+		return -1, fmt.Errorf(`"port", missing from configuration`)
+	}
+
+	p := config["port"]
+	ip, err := strconv.Atoi(p)
+	if err != nil {
+		return -1, fmt.Errorf(`"port" must be a number`)
+	}
+
+	return ip, nil
+}
+
+func getAddressFromConfig(config map[string]string) (string, int, error) {
+	if config == nil || config["address"] == "" {
+		return "", -1, fmt.Errorf(`"address", missing from configuration`)
+	}
+
+	parts := strings.Split(config["address"], ":")
+
+	p := parts[1]
+	ip, err := strconv.Atoi(p)
+	if err != nil {
+		return "", -1, fmt.Errorf(`"port" must be a number`)
+	}
+
+	return parts[0], ip, nil
 }
