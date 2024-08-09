@@ -12,11 +12,8 @@ import (
 	"net"
 	"net/url"
 	"time"
-	"unicode"
 
-	"golang.org/x/text/runes"
-	"golang.org/x/text/transform"
-	"golang.org/x/text/unicode/norm"
+	"golang.org/x/net/idna"
 )
 
 type CertReaderWriter interface {
@@ -162,8 +159,7 @@ func sanitizeDNSNames(dnsNames []string) []string {
 	names := []string{}
 
 	for _, name := range dnsNames {
-		t := transform.Chain(norm.NFD, runes.Remove(runes.In(unicode.Mn)), norm.NFC)
-		result, _, _ := transform.String(t, name)
+		result, _ := idna.ToASCII(name)
 		names = append(names, result)
 	}
 

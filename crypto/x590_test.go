@@ -104,7 +104,7 @@ func TestGeneratesLeafWithUnicodeDNS(t *testing.T) {
 
 	require.Equal(t, lc.IPAddresses[0].String(), "127.0.0.1")
 	require.Equal(t, lc.DNSNames[0], "toasties")
-	require.Equal(t, lc.DNSNames[1], "ade")
+	require.Equal(t, lc.DNSNames[1], "xn--ad-cja")
 
 	err = lc.CheckSignatureFrom(ca.Certificate)
 	require.NoError(t, err)
