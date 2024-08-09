@@ -1,6 +1,8 @@
 module github.com/jumppad-labs/connector
 
-go 1.19
+go 1.22
+
+toolchain go1.22.2
 
 require (
 	github.com/go-playground/validator/v10 v10.3.0
@@ -10,6 +12,7 @@ require (
 	github.com/hashicorp/go-hclog v0.12.1
 	github.com/spf13/cobra v0.0.3
 	github.com/stretchr/testify v1.7.0
+	golang.org/x/text v0.6.0
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1
 	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f
 	google.golang.org/grpc v1.53.0
@@ -43,7 +46,6 @@ require (
 	golang.org/x/oauth2 v0.4.0 // indirect
 	golang.org/x/sys v0.4.0 // indirect
 	golang.org/x/term v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect

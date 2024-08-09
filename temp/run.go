@@ -98,7 +98,7 @@ var runCmd = &cobra.Command{
 
 		// start the http server in the background
 		l.Info("Starting HTTP server", "bind_addr", httpBindAddr)
-		httpS := http.NewLocalServer(pathCertRoot, pathCertServer, pathKeyServer, grpcBindAddr, httpBindAddr, l)
+		httpS := http.NewLocalServer(pathCertRoot, pathKeyRoot, pathCertServer, pathKeyServer, grpcBindAddr, httpBindAddr, l)
 		err = httpS.Serve()
 		if err != nil {
 			l.Error("Unable to start HTTP server", "error", err)
@@ -122,6 +122,7 @@ var runCmd = &cobra.Command{
 var grpcBindAddr string
 var httpBindAddr string
 var pathCertRoot string
+var pathKeyRoot string
 var pathCertServer string
 var pathKeyServer string
 var logLevel string
@@ -134,6 +135,7 @@ func init() {
 	runCmd.Flags().StringVarP(&grpcBindAddr, "grpc-bind", "", ":9090", "Bind address for the gRPC API")
 	runCmd.Flags().StringVarP(&httpBindAddr, "http-bind", "", ":9091", "Bind address for the HTTP API")
 	runCmd.Flags().StringVarP(&pathCertRoot, "root-cert-path", "", "", "Path for the PEM encoded TLS root certificate")
+	runCmd.Flags().StringVarP(&pathKeyRoot, "root-cert-key", "", "", "Path for the PEM encoded TLS root key needed to generate certificates")
 	runCmd.Flags().StringVarP(&pathCertServer, "server-cert-path", "", "", "Path for the servers PEM encoded TLS certificate")
 	runCmd.Flags().StringVarP(&pathKeyServer, "server-key-path", "", "", "Path for the servers PEM encoded Private Key")
 	runCmd.Flags().StringVarP(&logLevel, "log-level", "", "info", "Log output level [debug, trace, info]")
