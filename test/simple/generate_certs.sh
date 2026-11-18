@@ -22,12 +22,12 @@ mkdir -p ./certs/remote
           --dns-name "connector:9091" \
           --dns-name "connector:9092" \
           --dns-name "connector:9093" \
-					--dns-name "*.container.shipyard.run:9090" \
-					--dns-name "*.container.shipyard.run:9091" \
-					--dns-name "*.container.shipyard.run:9092" \
-					--dns-name "*.container.shipyard.run:9093" \
-					--dns-name "local-connector.container.shipyard.run:9090" \
-					--dns-name "local-connector.container.shipyard.run:9091" \
+					--dns-name "*.container.local.jmpd.in:9090" \
+					--dns-name "*.container.local.jmpd.in:9091" \
+					--dns-name "*.container.local.jmpd.in:9092" \
+					--dns-name "*.container.local.jmpd.in:9093" \
+					--dns-name "local-connector.container.local.jmpd.in:9090" \
+					--dns-name "local-connector.container.local.jmpd.in:9091" \
           --root-ca ./certs/root.cert \
           --root-key ./certs/root.key \
           ./certs/local
@@ -44,12 +44,12 @@ mkdir -p ./certs/remote
           --dns-name "connector:9091" \
           --dns-name "connector:9092" \
           --dns-name "connector:9093" \
-					--dns-name "*.container.shipyard.run:9090" \
-					--dns-name "*.container.shipyard.run:9091" \
-					--dns-name "*.container.shipyard.run:9092" \
-					--dns-name "*.container.shipyard.run:9093" \
-					--dns-name "remote-connector.container.shipyard.run:9092" \
-					--dns-name "remote-connector.container.shipyard.run:9093" \
+					--dns-name "*.container.local.jmpd.in:9090" \
+					--dns-name "*.container.local.jmpd.in:9091" \
+					--dns-name "*.container.local.jmpd.in:9092" \
+					--dns-name "*.container.local.jmpd.in:9093" \
+					--dns-name "remote-connector.container.local.jmpd.in:9092" \
+					--dns-name "remote-connector.container.local.jmpd.in:9093" \
           --root-ca ./certs/root.cert \
           --root-key ./certs/root.key \
           ./certs/remote

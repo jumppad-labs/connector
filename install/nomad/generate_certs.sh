@@ -33,8 +33,8 @@ $COMMAND generate-certs \
           --dns-name ":9090" \
           --dns-name ":9091" \
           --dns-name "connector" \
-					--dns-name "server.dev.nomad-cluster.shipyard.run:30090" \
-					--dns-name "server.dev.nomad-cluster.shipyard.run:30091" \
+					--dns-name "server.dev.nomad-cluster.local.jmpd.in:30090" \
+					--dns-name "server.dev.nomad-cluster.local.jmpd.in:30091" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
           --root-ca ./certs/root.cert \

@@ -7,9 +7,9 @@ Feature: Local Connector Kubernetes
 Scenario: Expose multiple local and remote servics to a Kubernetes connector
   Given I have a running blueprint
   Then the following resources should be running
-    | name                      | type          |
-    | connector                 | k8s_cluster   |
-    | local_connector           | container     |
+    | name |
+    | resource.k8s_cluster.connector |
+    | resource.container.local_connector |
   When I run the script
     ```
     #!/bin/bash
@@ -22,7 +22,7 @@ Scenario: Expose multiple local and remote servics to a Kubernetes connector
     curl -v -k https://localhost:9091/expose -d \
       '{ "name":"localservice",
          "source_port": 9997,
-         "remote_connector_addr": "server.connector.k8s-cluster.shipyard.run:30090",
+         "remote_connector_addr": "server.connector.k8s-cluster.local.jmpd.in:30090",
          "destination_addr": "localhost:9091",
          "type": "local"
        }'
@@ -33,7 +33,7 @@ Scenario: Expose multiple local and remote servics to a Kubernetes connector
     curl -v -k https://localhost:9091/expose -d \
       '{ "name":"remoteservice",
          "source_port": 9998,
-         "remote_connector_addr": "server.connector.k8s-cluster.shipyard.run:30090",
+         "remote_connector_addr": "server.connector.k8s-cluster.local.jmpd.in:30090",
          "destination_addr": "localservice.shipyard-test.svc:9997",
          "type": "remote"
        }'

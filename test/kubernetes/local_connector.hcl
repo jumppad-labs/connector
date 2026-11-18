@@ -1,8 +1,8 @@
-container "local_connector" {
-	depends_on = ["exec_remote.certs"]
+resource "container" "local_connector" {
+  depends_on = ["resource.exec.certs"]
 
   image {
-		name = var.connector_image
+    name = variable.connector_image
   }
 
   command = [
@@ -15,23 +15,23 @@ container "local_connector" {
     "--server-cert-path=/certs/local/leaf.cert",
     "--server-key-path=/certs/local/leaf.key",
   ]
-  
+
   port_range {
-    range = "9090-9100"
+    range       = "9090-9100"
     enable_host = true
   }
-  
+
   port_range {
-    range = "9990-9999"
+    range       = "9990-9999"
     enable_host = true
   }
 
   network {
-    name = "network.local"
+    id = resource.network.local.meta.id
   }
 
   volume {
-    source = "./certs"
+    source      = "./certs"
     destination = "/certs"
   }
 }

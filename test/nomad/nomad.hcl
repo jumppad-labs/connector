@@ -1,14 +1,16 @@
-network "test" {
+resource "network" "test" {
   subnet = "10.6.0.0/16"
 }
 
-nomad_cluster "test" {
+# Named dev to match the server address in install/nomad/generate_certs.sh
+resource "nomad_cluster" "dev" {
   network {
-    name = "network.test"
+    id = resource.network.test.meta.id
   }
 
-  image {
-    name = "connector:dev"
+  # the connector job runs the locally built image
+  copy_image {
+    name = variable.connector_image
   }
 
   port {
@@ -24,12 +26,13 @@ nomad_cluster "test" {
   }
 }
 
-nomad_job "fake_service" {
-  cluster = "nomad_cluster.test"
+resource "nomad_job" "fake_service" {
+  cluster = resource.nomad_cluster.dev
 
   paths = ["./example.nomad"]
+
   health_check {
-    timeout    = "60s"
-    nomad_jobs = ["example_1"]
+    timeout = "60s"
+    jobs    = ["example_1"]
   }
 }

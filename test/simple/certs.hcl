@@ -1,22 +1,14 @@
-exec_remote "certs" {
+resource "exec" "certs" {
   image {
-    name = var.connector_image
-  }
-  
-  network {
-    name = "network.local"
+    name = variable.connector_image
   }
 
-  cmd = "/generate_certs.sh"
+  # the script writes to ./certs
+  working_directory = "/"
+  script            = file("./generate_certs.sh")
 
-  # Mount a volume containing the config
   volume {
-    source = "./generate_certs.sh"
-    destination = "/generate_certs.sh"
-  }
-  
-  volume {
-    source = "./certs"
+    source      = "./certs"
     destination = "/certs"
   }
 }

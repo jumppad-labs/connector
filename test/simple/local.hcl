@@ -1,7 +1,8 @@
-container "local_connector" {
-  depends_on = ["exec_remote.certs"]
+resource "container" "local_connector" {
+  depends_on = ["resource.exec.certs"]
+
   image {
-    name = var.connector_image
+    name = variable.connector_image
   }
 
   command = [
@@ -26,7 +27,7 @@ container "local_connector" {
   }
 
   network {
-    name = "network.local"
+    id = resource.network.local.meta.id
   }
 
   volume {
@@ -35,14 +36,14 @@ container "local_connector" {
   }
 }
 
-container "local_service" {
+resource "container" "local_service" {
   image {
     name = "nicholasjackson/fake-service:v0.14.1"
   }
 
-  env_var = {
-    "NAME" : "Local Service"
-    "LISTEN_ADDR" : "0.0.0.0:9094"
+  environment = {
+    NAME        = "Local Service"
+    LISTEN_ADDR = "0.0.0.0:9094"
   }
 
   port {
@@ -52,6 +53,6 @@ container "local_service" {
   }
 
   network {
-    name = "network.local"
+    id = resource.network.local.meta.id
   }
 }

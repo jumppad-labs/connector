@@ -1,8 +1,8 @@
-container "local_connector" {
-  depends_on = ["exec_remote.certs"]
+resource "container" "local_connector" {
+  depends_on = ["resource.exec.certs"]
 
   image {
-    name = "connector:dev"
+    name = variable.connector_image
   }
 
   command = [
@@ -27,7 +27,7 @@ container "local_connector" {
   }
 
   network {
-    name = "network.local"
+    id = resource.network.test.meta.id
   }
 
   volume {

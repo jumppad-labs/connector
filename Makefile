@@ -30,12 +30,14 @@ setup_multiarch:
 clean_multiarch:
 	docker buildx rm multi || true
 
-build_docker: clean_multiarch snapshot setup_multiarch
-	docker buildx build --platform linux/amd64 \
-		-t connector:dev \
+# Builds connector:dev for the local architecture. A plain build works with
+# Docker and Podman, and needs no QEMU or buildx builder. The full name is
+# what Jumppad looks for, Podman would otherwise tag it localhost/connector:dev.
+build_docker: snapshot
+	docker build \
+		-t docker.io/library/connector:dev \
 		-f ./Dockerfile \
-		./dist \
-		--load
+		./dist
 
 push_multi_docker:
 	docker buildx build --platform linux/arm/v6,linux/arm/v7,linux/arm64,linux/amd64 \
@@ -45,9 +47,9 @@ push_multi_docker:
 		--push
 
 build_and_test: build_docker
-	cd test/simple && shipyard test --var connector_image=connector:dev
-	cd test/kubernetes && shipyard test --var connector_image=connector:dev
-	cd test/nomad && shipyard test --var connector_image=connector:dev
+	cd test/simple && jumppad test --var connector_image=connector:dev
+	cd test/kubernetes && jumppad test --var connector_image=connector:dev
+	cd test/nomad && jumppad test --var connector_image=connector:dev
 
 build_dev:
 	docker build \

@@ -5,7 +5,7 @@ COMMAND="/connector"
 # We run this in the connector contaianer, if not running there
 # fall back to default path
 if ! command -v $COMMAND &> /dev/null; then
-  COMMAND = "connector"
+  COMMAND="connector"
 fi
 
 rm -rf ./certs/local
@@ -28,8 +28,8 @@ $COMMAND generate-certs \
           --dns-name ":9090" \
           --dns-name ":9091" \
           --dns-name "connector" \
-					--dns-name "server.connector.k8s-cluster.shipyard.run:30090" \
-					--dns-name "server.connector.k8s-cluster.shipyard.run:30091" \
+					--dns-name "server.connector.k8s-cluster.local.jmpd.in:30090" \
+					--dns-name "server.connector.k8s-cluster.local.jmpd.in:30091" \
           --dns-name "connector:9090" \
           --dns-name "connector:9091" \
           --root-ca ./certs/root.cert \
