@@ -139,7 +139,7 @@ func (i *Integration) jobEndpoints(job, group, task string) ([]map[string]string
 		epc := 0
 		for _, p := range ports {
 			// lookup the resources for the ports
-			for _, n := range allocDetail.Resources.Networks {
+			for _, n := range allocDetail.AllocatedResources.Shared.Networks {
 				for _, dp := range n.DynamicPorts {
 					if dp.Label == p {
 						ep[p] = fmt.Sprintf("%s:%d", n.IP, dp.Value)
@@ -196,9 +196,11 @@ func (i *Integration) getJobAllocations(job string) ([]map[string]interface{}, e
 }
 
 type allocation struct {
-	ID        string
-	Job       job
-	Resources resource
+	ID                 string
+	Job                job
+	AllocatedResources struct {
+		Shared resource
+	}
 }
 
 type job struct {
