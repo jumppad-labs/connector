@@ -1,8 +1,6 @@
 module github.com/jumppad-labs/connector
 
-go 1.22
-
-toolchain go1.22.2
+go 1.27
 
 require (
 	github.com/go-playground/validator/v10 v10.3.0
