@@ -3,40 +3,36 @@
 name: Build
 on: [push]
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    env:
-      GONOSUMDB: "github.com/moby/moby"
     name: Build
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-      
-      -
-        name: Set up Go
-        uses: actions/setup-go@v1
-        with:
-          go-version: 1.27
+        uses: actions/checkout@v7
 
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      # Download what go.mod pins; don't upgrade anything in CI
       - name: Get dependencies
-        run: |
-          make setup
-          go get -v -t ./...
+        run: go mod download
 
       - name: Unit Test
-        run: |
-          make unit_test
+        run: make unit_test
 
       - name: Build
-        run: |
-          make snapshot
+        run: make snapshot
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v7
         with:
           name: connector
-          path: |
-            ./dist
+          path: ./dist
 
   functional_test:
     name: Functional Test
@@ -52,27 +48,16 @@ jobs:
         ]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
 
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v8
         with:
           name: connector
           path: dist
 
-      - name: Setup Docker Multi-Arch Builder
-        run: |
-          docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
-          docker buildx create --name multi
-          docker buildx use multi
-          docker buildx inspect --bootstrap
-
+      # The runner is amd64, so no emulation is needed for the amd64 image
       - name: Build and load into local Docker
-        run: |
-          docker buildx build --platform linux/amd64 \
-          -t connector:dev \
-            -f ./Dockerfile \
-            ./dist \
-            --load
+        run: docker build -t connector:dev -f ./Dockerfile ./dist
 
       - name: Install Deps
         run: |
@@ -83,4 +68,4 @@ jobs:
       - name: ${{ matrix.folder }}
         run: |
           cd ${{ matrix.folder }}
-          shipyard test --var connector_image=connector:dev
+          jumppad test --var connector_image=connector:dev
